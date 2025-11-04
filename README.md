@@ -33,6 +33,8 @@ El informe técnico incluye:
 - Protocolo de comunicación.
 - Mecanismos de concurrencia utilizados.
 - Instrucciones de ejecución.
+- Mecanismos de control de fallas.
+- Herramienta de creación de fallas.
 
 [📑 Acceso al informe](./docs/Informe-G9-Diseño.pdf).
 
@@ -250,6 +252,12 @@ Esta interfaz nos permite:
 - Ver las colas activas.
 - Inspeccionar mensajes.
 - Observar cómo los controladores intercambian información.
+
+## 🐵 Chaos-Monkey (Herramienta de creación de fallas)
+
+Para generar fallos en el sistema distribuido (Ya sea de forma manual o automática) se desarrolló una herramienta de generacion de fallas del estilo 'Chaos-Monkey'.
+
+Dentro del directorio 'chaos_monkey', se encuentra un 'README.md' con una explicación completa acerca de las configuraciones, uso y modos de funcionamiento de la misma.
 
 ## 📁 Archivos de entrada y salida
 
