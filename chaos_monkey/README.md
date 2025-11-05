@@ -31,9 +31,9 @@ En este directorio se encuentra la implementación de la herramienta 'Chaos-Monk
 
 #### ¿Cómo configurarlo?
 
-El modo manual lee los targets desde '.env' y asigna números a cada contenedor (1..n).
+El modo manual lee los targets desde 'src/.env' y asigna números a cada contenedor (1..n).
 
-En este mismo directorio se cuenta con un '.env.example', usar de referencia para armar las configuraciones deseadas.
+En el mismo directorio se cuenta con un '.env.example', usar de referencia para armar las configuraciones deseadas.
 
 #### Inspeccionar la configuración actual de forma rápida
 
