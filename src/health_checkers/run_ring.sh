@@ -44,9 +44,9 @@ echo "Todos los health checkers levantados."
 if command -v xterm >/dev/null 2>&1; then
   echo "Abriendo ventanas xterm para cada nodo..."
 
-  xterm -T "hc1 logs" -e bash -lc "echo 'Logs hc1_container'; docker logs -f hc1_container" &
-  xterm -T "hc2 logs" -e bash -lc "echo 'Logs hc2_container'; docker logs -f hc2_container" &
-  xterm -T "hc3 logs" -e bash -lc "echo 'Logs hc3_container'; docker logs -f hc3_container" &
+  xterm -T "hc1 logs" -e bash -lc "echo 'Logs hc1_container'; docker logs -f hc1_container" >/dev/null 2>&1 &
+  xterm -T "hc2 logs" -e bash -lc "echo 'Logs hc2_container'; docker logs -f hc2_container" >/dev/null 2>&1 &
+  xterm -T "hc3 logs" -e bash -lc "echo 'Logs hc3_container'; docker logs -f hc3_container" >/dev/null 2>&1 &
 else
   echo "No se encontró xterm."
   echo "Podés ver los logs manualmente con:"
@@ -54,3 +54,5 @@ else
   echo "  docker logs -f hc2_container"
   echo "  docker logs -f hc3_container"
 fi
+
+exit 0
