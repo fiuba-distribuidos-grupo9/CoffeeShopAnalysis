@@ -13,9 +13,9 @@ rabbitmq_container_id=$(
 )
 
 docker exec "$rabbitmq_container_id" \
-    rabbitmqadmin \
-        get queue=$QUEUE_NAME \
-        ackmode=ack_requeue_true \
-        count=25000 \
-        --username="$RABBITMQ_USER" \
-        --password="$RABBITMQ_PASS" > "${QUEUE_NAME}_queue_messages.json"
+  rabbitmqadmin \
+    get queue=$QUEUE_NAME \
+    ackmode=ack_requeue_true \
+    count=25000 \
+    --username="$RABBITMQ_USER" \
+    --password="$RABBITMQ_PASS" > "${QUEUE_NAME}_queue_messages.json"

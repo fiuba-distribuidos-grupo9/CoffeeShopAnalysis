@@ -366,7 +366,6 @@ services:
       rabbitmq-message-middleware:
         condition: service_healthy
 
-
   # ============================== FILTERS SERVICES ============================== #
 
   filter_transactions_by_year_0:

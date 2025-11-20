@@ -936,7 +936,6 @@ function add-services() {
 
   add-comment $compose_file 'CLEANERS SERVICES'
   add-cleaners $compose_file
-  add-empty-line $compose_file
 
   add-comment $compose_file 'FILTERS SERVICES'
   add-filters $compose_file
