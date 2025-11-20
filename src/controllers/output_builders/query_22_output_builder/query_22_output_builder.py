@@ -1,5 +1,5 @@
 from controllers.output_builders.shared.query_output_builder import QueryOutputBuilder
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 
 
 class Query22OutputBuilder(QueryOutputBuilder):
@@ -10,4 +10,4 @@ class Query22OutputBuilder(QueryOutputBuilder):
         return ["year_month_created_at", "item_name", "profit_sum"]
 
     def _output_message_type(self) -> str:
-        return communication_protocol.QUERY_RESULT_22_MSG_TYPE
+        return constants.QUERY_RESULT_22_MSG_TYPE

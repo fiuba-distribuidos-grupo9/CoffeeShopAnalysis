@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from shared import constants, shell_cmd
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants as cp_constants
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.handshake_message import HandshakeMessage, Message
@@ -108,19 +108,13 @@ class Client:
             self._log_debug(
                 f"action: receive_chunk | result: success | chunk size: {len(chunk)}"
             )
-            if chunk.endswith(communication_protocol.MSG_END_DELIMITER.encode("utf-8")):
+            if chunk.endswith(cp_constants.MSG_END_DELIMITER.encode("utf-8")):
                 all_data_received = True
 
-            if communication_protocol.MSG_END_DELIMITER.encode("utf-8") in chunk:
-                index = chunk.rindex(
-                    communication_protocol.MSG_END_DELIMITER.encode("utf-8")
-                )
-                bytes_received += chunk[
-                    : index + len(communication_protocol.MSG_END_DELIMITER)
-                ]
-                self._temp_buffer = chunk[
-                    index + len(communication_protocol.MSG_END_DELIMITER) :
-                ]
+            if cp_constants.MSG_END_DELIMITER.encode("utf-8") in chunk:
+                index = chunk.rindex(cp_constants.MSG_END_DELIMITER.encode("utf-8"))
+                bytes_received += chunk[: index + len(cp_constants.MSG_END_DELIMITER)]
+                self._temp_buffer = chunk[index + len(cp_constants.MSG_END_DELIMITER) :]
                 all_data_received = True
             else:
                 bytes_received += chunk
@@ -183,7 +177,7 @@ class Client:
 
     def _send_handshake_message(self) -> None:
         handshake_message = HandshakeMessage(
-            str(self._client_id), communication_protocol.ALL_QUERIES
+            str(self._client_id), cp_constants.ALL_QUERIES
         )
         self._socket_send_message(self._client_socket, str(handshake_message))
         self._log_info(f"action: send_handshake | result: success")
@@ -264,31 +258,31 @@ class Client:
     def _send_all_menu_items(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.MIT_FOLDER_NAME,
-            communication_protocol.MENU_ITEMS_BATCH_MSG_TYPE,
+            cp_constants.MENU_ITEMS_BATCH_MSG_TYPE,
         )
 
     def _send_all_stores(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.STR_FOLDER_NAME,
-            communication_protocol.STORES_BATCH_MSG_TYPE,
+            cp_constants.STORES_BATCH_MSG_TYPE,
         )
 
     def _send_all_transaction_items(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.TIT_FOLDER_NAME,
-            communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
+            cp_constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
         )
 
     def _send_all_transactions(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.TRN_FOLDER_NAME,
-            communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE,
+            cp_constants.TRANSACTIONS_BATCH_MSG_TYPE,
         )
 
     def _send_all_users(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.USR_FOLDER_NAME,
-            communication_protocol.USERS_BATCH_MSG_TYPE,
+            cp_constants.USERS_BATCH_MSG_TYPE,
         )
 
     def _send_all_data(self) -> None:
@@ -350,13 +344,13 @@ class Client:
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        messages = received_message.split(communication_protocol.MSG_END_DELIMITER)
+        messages = received_message.split(cp_constants.MSG_END_DELIMITER)
         for message in messages:
             if not self._is_running():
                 break
             if message == "":
                 continue
-            message += communication_protocol.MSG_END_DELIMITER
+            message += cp_constants.MSG_END_DELIMITER
             callback(Message.suitable_for_str(message), *args, **kwargs)
 
     def _receive_all_query_results_from_server(self) -> None:

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
 
 
@@ -8,7 +8,7 @@ class EOFMessage(Message):
 
     @classmethod
     def _unique_available_message_type(cls) -> str:
-        return communication_protocol.EOF_MSG_TYPE
+        return constants.EOF_MSG_TYPE
 
     @classmethod
     def _available_message_types(cls) -> list[str]:
@@ -29,7 +29,7 @@ class EOFMessage(Message):
     def _decode_metadata(
         cls, metadata: str
     ) -> tuple[str, Optional[str], Optional[str]]:
-        metadata_fields = metadata.split(communication_protocol.METADATA_SEPARATOR)
+        metadata_fields = metadata.split(constants.METADATA_SEPARATOR)
         if len(metadata_fields) == 3:
             session_id, message_id, controller_id = metadata_fields
             return session_id, message_id, controller_id
@@ -93,7 +93,7 @@ class EOFMessage(Message):
             metadata_parts.append(self._message_id)
         if self._controller_id is not None:
             metadata_parts.append(self._controller_id)
-        return communication_protocol.METADATA_SEPARATOR.join(metadata_parts)
+        return constants.METADATA_SEPARATOR.join(metadata_parts)
 
     # ============================== UPDATING ============================== #
 

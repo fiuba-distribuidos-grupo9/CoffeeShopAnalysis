@@ -1,4 +1,4 @@
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 
 # ============================== COMMON CONSTANTS ============================== #
 
@@ -6,17 +6,17 @@ KiB = 1024
 
 # ============================== COMMON TAGS ============================== #
 
-MENU_ITEMS = communication_protocol.MENU_ITEMS_BATCH_MSG_TYPE
-STORES = communication_protocol.STORES_BATCH_MSG_TYPE
-TRANSACTION_ITEMS = communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE
-TRANSACTIONS = communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE
-USERS = communication_protocol.USERS_BATCH_MSG_TYPE
+MENU_ITEMS = constants.MENU_ITEMS_BATCH_MSG_TYPE
+STORES = constants.STORES_BATCH_MSG_TYPE
+TRANSACTION_ITEMS = constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE
+TRANSACTIONS = constants.TRANSACTIONS_BATCH_MSG_TYPE
+USERS = constants.USERS_BATCH_MSG_TYPE
 
-QUERY_RESULT_1X = communication_protocol.QUERY_RESULT_1X_MSG_TYPE
-QUERY_RESULT_21 = communication_protocol.QUERY_RESULT_21_MSG_TYPE
-QUERY_RESULT_22 = communication_protocol.QUERY_RESULT_22_MSG_TYPE
-QUERY_RESULT_3X = communication_protocol.QUERY_RESULT_3X_MSG_TYPE
-QUERY_RESULT_4X = communication_protocol.QUERY_RESULT_4X_MSG_TYPE
+QUERY_RESULT_1X = constants.QUERY_RESULT_1X_MSG_TYPE
+QUERY_RESULT_21 = constants.QUERY_RESULT_21_MSG_TYPE
+QUERY_RESULT_22 = constants.QUERY_RESULT_22_MSG_TYPE
+QUERY_RESULT_3X = constants.QUERY_RESULT_3X_MSG_TYPE
+QUERY_RESULT_4X = constants.QUERY_RESULT_4X_MSG_TYPE
 
 QUEUE_PREFIX = "queue_prefix_name"
 WORKERS_AMOUNT = "workers_amount"

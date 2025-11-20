@@ -1,6 +1,6 @@
 from typing import Optional
 
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
 
 
@@ -9,16 +9,16 @@ class BatchMessage(Message):
     @classmethod
     def _available_message_types(cls) -> list[str]:
         return [
-            communication_protocol.MENU_ITEMS_BATCH_MSG_TYPE,
-            communication_protocol.STORES_BATCH_MSG_TYPE,
-            communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
-            communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE,
-            communication_protocol.USERS_BATCH_MSG_TYPE,
-            communication_protocol.QUERY_RESULT_1X_MSG_TYPE,
-            communication_protocol.QUERY_RESULT_21_MSG_TYPE,
-            communication_protocol.QUERY_RESULT_22_MSG_TYPE,
-            communication_protocol.QUERY_RESULT_3X_MSG_TYPE,
-            communication_protocol.QUERY_RESULT_4X_MSG_TYPE,
+            constants.MENU_ITEMS_BATCH_MSG_TYPE,
+            constants.STORES_BATCH_MSG_TYPE,
+            constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
+            constants.TRANSACTIONS_BATCH_MSG_TYPE,
+            constants.USERS_BATCH_MSG_TYPE,
+            constants.QUERY_RESULT_1X_MSG_TYPE,
+            constants.QUERY_RESULT_21_MSG_TYPE,
+            constants.QUERY_RESULT_22_MSG_TYPE,
+            constants.QUERY_RESULT_3X_MSG_TYPE,
+            constants.QUERY_RESULT_4X_MSG_TYPE,
         ]
 
     # ============================== PRIVATE - ASSERTIONS ============================== #
@@ -36,7 +36,7 @@ class BatchMessage(Message):
     def _decode_metadata(
         cls, metadata: str
     ) -> tuple[str, Optional[str], Optional[str]]:
-        metadata_fields = metadata.split(communication_protocol.METADATA_SEPARATOR)
+        metadata_fields = metadata.split(constants.METADATA_SEPARATOR)
         if len(metadata_fields) == 3:
             session_id, message_id, controller_id = metadata_fields
             return session_id, message_id, controller_id
@@ -53,16 +53,10 @@ class BatchMessage(Message):
 
     @classmethod
     def _decode_batch_item(cls, encoded_batch_item: str) -> dict[str, str]:
-        encoded_batch_item = encoded_batch_item.strip(
-            communication_protocol.BATCH_START_DELIMITER
-        )
-        encoded_batch_item = encoded_batch_item.strip(
-            communication_protocol.BATCH_END_DELIMITER
-        )
+        encoded_batch_item = encoded_batch_item.strip(constants.BATCH_START_DELIMITER)
+        encoded_batch_item = encoded_batch_item.strip(constants.BATCH_END_DELIMITER)
 
-        key_value_pairs = encoded_batch_item.split(
-            communication_protocol.BATCH_ITEM_FIELD_SEPARATOR
-        )
+        key_value_pairs = encoded_batch_item.split(constants.BATCH_ITEM_FIELD_SEPARATOR)
 
         decoded_batch_item = {}
 
@@ -74,7 +68,7 @@ class BatchMessage(Message):
 
     @classmethod
     def _decode_batch_items(cls, payload: str) -> list[dict[str, str]]:
-        encoded_batch_items = payload.split(communication_protocol.BATCH_ITEM_SEPARATOR)
+        encoded_batch_items = payload.split(constants.BATCH_ITEM_SEPARATOR)
         decoded_batch_items = []
 
         for encoded_batch_item in encoded_batch_items:
@@ -154,7 +148,7 @@ class BatchMessage(Message):
             metadata_parts.append(self._message_id)
         if self._controller_id is not None:
             metadata_parts.append(self._controller_id)
-        return communication_protocol.METADATA_SEPARATOR.join(metadata_parts)
+        return constants.METADATA_SEPARATOR.join(metadata_parts)
 
     def _encode_batch_item_field(self, key: str, value: str) -> str:
         return f'"{key}":"{value}"'
@@ -165,11 +159,11 @@ class BatchMessage(Message):
             for key, value in batch_item.items()
         ]
 
-        encoded_batch_item = communication_protocol.BATCH_START_DELIMITER
-        encoded_batch_item += communication_protocol.BATCH_ITEM_FIELD_SEPARATOR.join(
+        encoded_batch_item = constants.BATCH_START_DELIMITER
+        encoded_batch_item += constants.BATCH_ITEM_FIELD_SEPARATOR.join(
             encoded_batch_item_fields
         )
-        encoded_batch_item += communication_protocol.BATCH_END_DELIMITER
+        encoded_batch_item += constants.BATCH_END_DELIMITER
 
         return encoded_batch_item
 
@@ -180,7 +174,7 @@ class BatchMessage(Message):
             encoded_batch_item = self._encode_batch_item(batch_item)
             encoded_batch_items.append(encoded_batch_item)
 
-        return communication_protocol.BATCH_ITEM_SEPARATOR.join(encoded_batch_items)
+        return constants.BATCH_ITEM_SEPARATOR.join(encoded_batch_items)
 
     # ============================== UPDATING ============================== #
 

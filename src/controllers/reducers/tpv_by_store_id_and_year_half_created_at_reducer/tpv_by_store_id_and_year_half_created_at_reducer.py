@@ -3,7 +3,7 @@ from typing import Any
 from controllers.reducers.shared.reducer import Reducer
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 
 
 class TpvByStoreIdAndYearHalfCreatedAtReducer(Reducer):
@@ -38,7 +38,7 @@ class TpvByStoreIdAndYearHalfCreatedAtReducer(Reducer):
         return "tpv"
 
     def _message_type(self) -> str:
-        return communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE
+        return constants.TRANSACTIONS_BATCH_MSG_TYPE
 
     # ============================== PRIVATE - HANDLE DATA ============================== #
 

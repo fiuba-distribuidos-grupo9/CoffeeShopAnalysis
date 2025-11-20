@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 
 
 class Message(ABC):
@@ -57,12 +57,12 @@ class Message(ABC):
 
     @classmethod
     def _message_type_from_str(cls, message_str: str) -> str:
-        return message_str[: communication_protocol.MESSAGE_TYPE_LENGTH]
+        return message_str[: constants.MESSAGE_TYPE_LENGTH]
 
     @classmethod
     def _metadata_from_str(cls, message_str: str) -> str:
-        start = message_str.index(communication_protocol.METADATA_DELIMITER)
-        end = message_str.index(communication_protocol.MSG_START_DELIMITER, start)
+        start = message_str.index(constants.METADATA_DELIMITER)
+        end = message_str.index(constants.MSG_START_DELIMITER, start)
 
         metadata = message_str[start + 1 : end]
 
@@ -70,8 +70,8 @@ class Message(ABC):
 
     @classmethod
     def _payload_from_str(cls, message_str: str) -> str:
-        start = message_str.index(communication_protocol.MSG_START_DELIMITER)
-        end = message_str.index(communication_protocol.MSG_END_DELIMITER, start)
+        start = message_str.index(constants.MSG_START_DELIMITER)
+        end = message_str.index(constants.MSG_END_DELIMITER, start)
 
         payload = message_str[start + 1 : end]
 
@@ -96,9 +96,9 @@ class Message(ABC):
     def __str__(self) -> str:
         # format: <message_type>|<metadata>[<payload>]
         encoded_payload = self.message_type()
-        encoded_payload += communication_protocol.METADATA_DELIMITER
+        encoded_payload += constants.METADATA_DELIMITER
         encoded_payload += self.metadata()
-        encoded_payload += communication_protocol.MSG_START_DELIMITER
+        encoded_payload += constants.MSG_START_DELIMITER
         encoded_payload += self.payload()
-        encoded_payload += communication_protocol.MSG_END_DELIMITER
+        encoded_payload += constants.MSG_END_DELIMITER
         return encoded_payload

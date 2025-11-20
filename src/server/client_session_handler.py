@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared import constants
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants as cp_constants
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.handshake_message import HandshakeMessage
@@ -28,11 +28,11 @@ class ClientSessionHandler:
 
     def _init_client_data_batch_stats(self) -> None:
         self._client_eof_received = {
-            communication_protocol.MENU_ITEMS_BATCH_MSG_TYPE: False,
-            communication_protocol.STORES_BATCH_MSG_TYPE: False,
-            communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE: False,
-            communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE: False,
-            communication_protocol.USERS_BATCH_MSG_TYPE: False,
+            cp_constants.MENU_ITEMS_BATCH_MSG_TYPE: False,
+            cp_constants.STORES_BATCH_MSG_TYPE: False,
+            cp_constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE: False,
+            cp_constants.TRANSACTIONS_BATCH_MSG_TYPE: False,
+            cp_constants.USERS_BATCH_MSG_TYPE: False,
         }
 
     def _init_output_builders_data_stats(self) -> None:
@@ -158,19 +158,13 @@ class ClientSessionHandler:
             self._log_debug(
                 f"action: receive_chunk | result: success | chunk size: {len(chunk)}"
             )
-            if chunk.endswith(communication_protocol.MSG_END_DELIMITER.encode("utf-8")):
+            if chunk.endswith(cp_constants.MSG_END_DELIMITER.encode("utf-8")):
                 all_data_received = True
 
-            if communication_protocol.MSG_END_DELIMITER.encode("utf-8") in chunk:
-                index = chunk.rindex(
-                    communication_protocol.MSG_END_DELIMITER.encode("utf-8")
-                )
-                bytes_received += chunk[
-                    : index + len(communication_protocol.MSG_END_DELIMITER)
-                ]
-                self._temp_buffer = chunk[
-                    index + len(communication_protocol.MSG_END_DELIMITER) :
-                ]
+            if cp_constants.MSG_END_DELIMITER.encode("utf-8") in chunk:
+                index = chunk.rindex(cp_constants.MSG_END_DELIMITER.encode("utf-8"))
+                bytes_received += chunk[: index + len(cp_constants.MSG_END_DELIMITER)]
+                self._temp_buffer = chunk[index + len(cp_constants.MSG_END_DELIMITER) :]
                 all_data_received = True
             else:
                 bytes_received += chunk
@@ -212,7 +206,7 @@ class ClientSessionHandler:
 
         handshake_message = HandshakeMessage.from_str(received_message)
         client_id = handshake_message.id()
-        if handshake_message.payload() != communication_protocol.ALL_QUERIES:
+        if handshake_message.payload() != cp_constants.ALL_QUERIES:
             raise ValueError(
                 f"Invalid handshake payload received from client: {handshake_message.payload()}"
             )
@@ -258,13 +252,13 @@ class ClientSessionHandler:
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        messages = received_message.split(communication_protocol.MSG_END_DELIMITER)
+        messages = received_message.split(cp_constants.MSG_END_DELIMITER)
         for message in messages:
             if not self._is_running():
                 break
             if message == "":
                 continue
-            message += communication_protocol.MSG_END_DELIMITER
+            message += cp_constants.MSG_END_DELIMITER
             callback(Message.suitable_for_str(message), *args, **kwargs)
 
     def _receive_all_data_from_client(self, client_socket: socket.socket) -> None:

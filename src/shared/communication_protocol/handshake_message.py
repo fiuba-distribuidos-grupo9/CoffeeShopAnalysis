@@ -1,4 +1,4 @@
-from shared.communication_protocol import communication_protocol
+from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
 
 
@@ -6,7 +6,7 @@ class HandshakeMessage(Message):
 
     @classmethod
     def _unique_available_message_type(cls) -> str:
-        return communication_protocol.HANDSHAKE_MSG_TYPE
+        return constants.HANDSHAKE_MSG_TYPE
 
     @classmethod
     def _available_message_types(cls) -> list[str]:
