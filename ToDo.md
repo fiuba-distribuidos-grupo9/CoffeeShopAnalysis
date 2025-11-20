@@ -1,5 +1,4 @@
 ToDo list:
-- add Message object
 - all EOF should be send with 0 uuid, the flush too, because it is identified by other things. 
 - change controller ids on each controller
 - sharding on each controller
