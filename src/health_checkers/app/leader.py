@@ -8,10 +8,8 @@ from .models import Config
 
 class LeaderLoop:
     """
-    Loop sencillo basado en hilos:
-      - Corre en un hilo dedicado.
-      - Sólo cuando este nodo es líder ejecuta la lógica de validación.
-    Por ahora, la "validación" es únicamente un print + sleep(5s).
+    Loop sencillo en un hilo:
+      - Sólo ejecuta lógica de validación cuando este nodo es líder.
     """
 
     def __init__(self, cfg: Config, is_leader_callable):
@@ -20,7 +18,7 @@ class LeaderLoop:
         self._thread: Optional[threading.Thread] = None
         self._running = threading.Event()
 
-    def start(self):
+    def start(self) -> None:
         if self._thread is not None:
             return
         self._running.set()
@@ -31,17 +29,15 @@ class LeaderLoop:
         )
         self._thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self._running.clear()
-        # No bloqueamos fuerte: el hilo se terminará solo al próximo ciclo.
         self._thread = None
 
-    def _loop(self):
+    def _loop(self) -> None:
         while self._running.is_set():
             if self.is_leader():
-                # Lugar central donde el líder valida al resto del sistema.
+                # Acá va la lógica “real” de validación de nodos (por ahora es un print).
                 print(f"[leader] Nodo líder {self.cfg.node_id} validando nodos del sistema (placeholder)…")
                 time.sleep(5.0)
             else:
-                # Si no soy líder, sólo descanso un poco y vuelvo a chequear.
                 time.sleep(1.0)

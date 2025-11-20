@@ -41,7 +41,6 @@ docker run -d --name hc3_container --network "$NETWORK_NAME" \
 
 echo "Todos los health checkers levantados."
 
-# Abrir una consola por nodo para ver logs en vivo usando 'XTERM'.
 if command -v xterm >/dev/null 2>&1; then
   echo "Abriendo ventanas xterm para cada nodo..."
 

@@ -1,52 +1,91 @@
 # src/health_checkers/app/heartbeat.py
 from __future__ import annotations
-import asyncio, time
-from typing import Optional, Callable
+import threading
+import time
+from typing import Callable, Optional
 from .models import Config, Message
 
-class Heartbeat:
+
+class HeartbeatLoop:
+    """
+    Loop de heartbeat basado en hilos:
+      - Envía heartbeat al sucesor cada intervalo.
+      - Espera ACK.
+      - Si pasa el timeout sin ACK → sucesor sospechado caído.
+    """
+
     def __init__(
         self,
         cfg: Config,
-        send_to_successor,
-        on_successor_suspect: Callable[[], None],
-        is_leader: Callable[[], bool],
-    ):
+        get_successor: Callable[[], Optional["Peer"]],
+        send_to_successor: Callable[[Message], None],
+        on_successor_suspected: Callable[[int], None],
+    ) -> None:
         self.cfg = cfg
+        self.get_successor = get_successor
         self.send_to_successor = send_to_successor
-        self.on_successor_suspect = on_successor_suspect
-        self.is_leader = is_leader
+        self.on_successor_suspected = on_successor_suspected
 
-        self._last_from_pred_ts: float = time.monotonic()
-        self._monitor_task: Optional[asyncio.Task] = None
-        self._running = asyncio.Event()
+        self._running = threading.Event()
+        self._thread: Optional[threading.Thread] = None
 
-    def note_heartbeat_from_pred(self):
-        self._last_from_pred_ts = time.monotonic()
+        self._lock = threading.Lock()
+        self._last_ack_ts: float = 0.0
+        self._ever_ack: bool = False
 
-    async def start(self):
+    def start(self) -> None:
+        if self._thread is not None:
+            return
         self._running.set()
-        self._monitor_task = asyncio.create_task(self._monitor_loop())
+        self._thread = threading.Thread(
+            target=self._loop,
+            name=f"Heartbeat-{self.cfg.node_id}",
+            daemon=True,
+        )
+        self._thread.start()
 
-    async def stop(self):
+    def stop(self) -> None:
         self._running.clear()
-        if self._monitor_task:
-            self._monitor_task.cancel()
-            with contextlib.suppress(Exception):
-                await self._monitor_task
+        self._thread = None
 
-    async def _monitor_loop(self):
+    def notify_ack(self) -> None:
+        """Llamado cuando recibimos un ACK desde el sucesor."""
+        now = time.monotonic()
+        with self._lock:
+            self._last_ack_ts = now
+            self._ever_ack = True
+
+    def _loop(self) -> None:
+        interval_s = max(self.cfg.heartbeat_interval_ms / 1000.0, 0.1)
+        timeout_s = max(self.cfg.heartbeat_timeout_ms / 1000.0, interval_s * 2)
+
         while self._running.is_set():
-            # We sent heartbeat to successor.
-            msg = Message(kind="heartbeat", src_id=self.cfg.node_id, src_name=self.cfg.node_name)
-            await self.send_to_successor(msg)
-
-            # We check if we stop receiving heartbeats from the predecessor.
+            suc = self.get_successor()
             now = time.monotonic()
-            silence = (now - self._last_from_pred_ts) * 1000.0
-            if silence > self.cfg.heartbeat_timeout_ms:
-                # We are warning of suspicion regarding the successor (possibly a broken ring).
 
-                self.on_successor_suspect()
+            if suc is not None:
+                # Enviamos ping al sucesor.
+                msg = Message(
+                    kind="heartbeat",
+                    src_id=self.cfg.node_id,
+                    src_name=self.cfg.node_name,
+                    payload={"ack": False},
+                )
+                self.send_to_successor(msg)
 
-            await asyncio.sleep(self.cfg.heartbeat_interval_ms / 1000.0)
+            # Chequeo de timeout de ACK.
+            with self._lock:
+                ever = self._ever_ack
+                last = self._last_ack_ts
+
+            if suc is not None and ever:
+                silence = now - last
+                if silence > timeout_s:
+                    # Sucesor sospechado caído.
+                    self.on_successor_suspected(suc.id)
+                    # Reseteamos para no disparar infinito.
+                    with self._lock:
+                        self._ever_ack = False
+                        self._last_ack_ts = now
+
+            time.sleep(interval_s)
