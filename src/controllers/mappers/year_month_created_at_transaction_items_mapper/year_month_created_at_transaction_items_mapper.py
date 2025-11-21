@@ -3,9 +3,6 @@ from typing import Any
 
 from controllers.mappers.shared.mapper import Mapper
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 
@@ -29,13 +26,12 @@ class YearMonthCreatedAtTransactionItemsMapper(Mapper):
         producers_config: dict[str, Any],
         producer_id: int,
     ) -> MessageMiddleware:
-        exchange_name = producers_config["exchange_name_prefix"]
-        routing_key = f"{producers_config["routing_key_prefix"]}.{producer_id}"
-        return RabbitMQMessageMiddlewareExchange(
-            host=rabbitmq_host,
-            exchange_name=exchange_name,
-            route_keys=[routing_key],
-        )
+        queue_name_prefix = producers_config["queue_name_prefix"]
+        count_queue_name = "count_items"
+        sum_queue_name = "sum_items"
+        count_queue = RabbitMQMessageMiddlewareQueue(host=rabbitmq_host,queue_name=(f"{queue_name_prefix}-{count_queue_name}-{producer_id}"))
+        sum_queue = RabbitMQMessageMiddlewareQueue(host=rabbitmq_host,queue_name=(f"{queue_name_prefix}-{sum_queue_name}-{producer_id}"))
+        return [count_queue, sum_queue]
 
     # ============================== PRIVATE - TRANSFORM DATA ============================== #
 
@@ -53,6 +49,8 @@ class YearMonthCreatedAtTransactionItemsMapper(Mapper):
         # [IMPORTANT] this must consider the next controller's grouping key
         sharding_key = "item_id"
 
+        next_controllers = len(self._mom_producers) // 2
+
         for batch_items in message.batch_items():
             if batch_items[sharding_key] == "":
                 # [IMPORTANT] If sharding value is empty, the hash will fail
@@ -64,12 +62,14 @@ class YearMonthCreatedAtTransactionItemsMapper(Mapper):
             sharding_value = int(float(batch_items[sharding_key]))
             batch_items[sharding_key] = str(sharding_value)
 
-            hash = sharding_value % len(self._mom_producers)
+            hash = sharding_value % next_controllers
             batch_items_by_hash.setdefault(hash, [])
             batch_items_by_hash[hash].append(batch_items)
 
         for hash, batch_items in batch_items_by_hash.items():
-            mom_producer = self._mom_producers[hash]
+            count_producer = self._mom_producers[hash*2]
+            sum_producer = self._mom_producers[hash*2 + 1]
+            # mom_producer = self._mom_producers[hash]
             message = BatchMessage(
                 message_type=message.message_type(),
                 session_id=message.session_id(),
@@ -77,4 +77,5 @@ class YearMonthCreatedAtTransactionItemsMapper(Mapper):
                 controller_id=str(self._controller_id),
                 batch_items=batch_items,
             )
-            mom_producer.send(str(message))
+            count_producer.send(str(message))
+            sum_producer.send(str(message))

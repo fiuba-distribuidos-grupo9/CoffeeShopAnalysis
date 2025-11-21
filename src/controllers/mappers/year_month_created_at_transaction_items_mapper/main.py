@@ -24,8 +24,7 @@ def main():
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {
-        "exchange_name_prefix": constants.MAPPED_YEAR_MONTH_TIT_EXHCHANGE_PREFIX,
-        "routing_key_prefix": constants.MAPPED_YEAR_MONTH_TIT_ROUTING_KEY_PREFIX,
+        "queue_name_prefix": constants.MAPPED_YEAR_MONTH_TIT_QUEUE_PREFIX,
         "next_controllers_amount": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
     }
 

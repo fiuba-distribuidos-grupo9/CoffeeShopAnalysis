@@ -74,6 +74,9 @@ FILTERED_TIT_BY_YEAR_QUEUE_PREFIX = "Q2X__tit-filtered-transaction-items-by-year
 MAPPED_YEAR_MONTH_TIT_EXHCHANGE_PREFIX = (
     "Q2X__tit-mapped-year-month-transaction-items-exchange"
 )
+
+MAPPED_YEAR_MONTH_TIT_QUEUE_PREFIX = "Q2X_tit-mapped-year-month-transaction-items-queue"
+
 MAPPED_YEAR_MONTH_TIT_ROUTING_KEY_PREFIX = (
     "Q2X__tit-mapped-year-month-transaction-items-routing-key"
 )

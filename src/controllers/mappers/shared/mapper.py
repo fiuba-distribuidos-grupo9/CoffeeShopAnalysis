@@ -51,10 +51,11 @@ class Mapper(Controller):
 
         next_controllers_amount = producers_config["next_controllers_amount"]
         for producer_id in range(next_controllers_amount):
-            mom_producer = self._build_mom_producer_using(
+            producers = self._build_mom_producer_using(
                 rabbitmq_host, producers_config, producer_id
             )
-            self._mom_producers.append(mom_producer)
+            for i in range(len(producers)):
+                self._mom_producers.append(producers[i])
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
