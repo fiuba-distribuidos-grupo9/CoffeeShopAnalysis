@@ -41,7 +41,7 @@ docker-compose-restart:
 docker-export-logs:
 	@rm -rf logs
 	@mkdir -p logs
-	@for service in $$(docker compose config --services); do \
+	@for service in $$(docker compose config --services | grep -v '^server$$'); do \
 		echo "Filtrando logs de $$service..."; \
 		touch logs/$$service.log; \
 		docker compose logs --no-color $$service 2>&1 | grep 'eof' > logs/$$service.log; \

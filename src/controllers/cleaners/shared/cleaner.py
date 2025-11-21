@@ -39,12 +39,13 @@ class Cleaner(Controller):
         self._current_producer_id = 0
         self._mom_producers: list[MessageMiddleware] = []
 
-        next_controllers_amount = producers_config["next_controllers_amount"]
-        for producer_id in range(next_controllers_amount):
-            mom_producer = self._build_mom_producer_using(
+        self.next_controllers_amount = producers_config["next_controllers_amount"]
+        for producer_id in range(self.next_controllers_amount):
+            producers = self._build_mom_producer_using(
                 rabbitmq_host, producers_config, producer_id
             )
-            self._mom_producers.append(mom_producer)
+            for i in range(len(producers)):
+                self._mom_producers.append(producers[i])
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
