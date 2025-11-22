@@ -66,7 +66,7 @@ FILTERED_TIT_BY_YEAR_QUEUE_PREFIX = "Q2X__tit-filtered-transaction-items-by-year
 
 # query 2.1
 
-MAPPED_YEAR_MONTH_TIT_21_QUEUE_PREFIX = "Q21_tit-mapped-year-month-transaction-items"
+MAPPED_YEAR_MONTH_TIT_21_QUEUE_PREFIX = "Q21__tit-mapped-year-month-transaction-items"
 SELLINGS_QTY_BY_YEAR_MONTH_CREATED_AT__ITEM_ID_QUEUE_PREFIX = (
     "Q21__tit-sellings-qty-by-year-month-created-at-&-item-id"
 )
@@ -79,7 +79,7 @@ SORTED_DESC_SELLINGS_QTY_BY_YEAR_MONTH__ITEM_NAME_QUEUE_PREFIX = (
 
 # query 2.2
 
-MAPPED_YEAR_MONTH_TIT_22_QUEUE_PREFIX = "Q22_tit-mapped-year-month-transaction-items"
+MAPPED_YEAR_MONTH_TIT_22_QUEUE_PREFIX = "Q22__tit-mapped-year-month-transaction-items"
 PROFIT_SUM_BY_YEAR_MONTH__ITEM_ID_CREATED_AT_QUEUE_PREFIX = (
     "Q22__tit-profit-sum-by-year-month-created-at-&-item-id"
 )

@@ -20,7 +20,7 @@ def main():
     logging.info(f"action: init_config | result: success | params: {config_params}")
 
     consumers_config = {
-        "queue_name_prefix": constants.FILTERED_TRN_BY_YEAR__HOUR_1X_QUEUE_PREFIX,
+        "queue_name_prefix": constants.FILTERED_TRN_BY_YEAR__HOUR_3X_QUEUE_PREFIX,
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {
