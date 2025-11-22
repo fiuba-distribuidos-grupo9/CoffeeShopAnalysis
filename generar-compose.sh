@@ -694,8 +694,7 @@ function add-transactions-with-stores-q3x-joiner(){
   add-line $compose_file '      - LOGGING_LEVEL=${LOGGING_LEVEL}'
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
-  add-line $compose_file "      - OUTPUT_BUILDERS_AMOUNT=$Q3X_OB_AMOUNT"
-  add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1' 
+  add-line $compose_file "      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1"
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q3_REDUCERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q3X_OB_AMOUNT"
   add-line $compose_file '    networks:'
