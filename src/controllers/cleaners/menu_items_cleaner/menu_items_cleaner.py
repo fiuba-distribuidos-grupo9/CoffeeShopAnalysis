@@ -33,8 +33,6 @@ class MenuItemsCleaner(Cleaner):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id_1 = 0
-        self._current_producer_id_2 = 0
         self._mom_producers_1: list[MessageMiddleware] = []
         self._mom_producers_2: list[MessageMiddleware] = []
 
@@ -58,21 +56,9 @@ class MenuItemsCleaner(Cleaner):
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        mom_producer_1 = self._mom_producers_1[self._current_producer_id_1]
-        mom_producer_1.send(str(message))
+        self._mom_send_message_through_all_producers(message)
 
-        self._current_producer_id_1 += 1
-        if self._current_producer_id_1 >= len(self._mom_producers_1):
-            self._current_producer_id_1 = 0
-
-        mom_producer_2 = self._mom_producers_2[self._current_producer_id_2]
-        mom_producer_2.send(str(message))
-
-        self._current_producer_id_2 += 1
-        if self._current_producer_id_2 >= len(self._mom_producers_2):
-            self._current_producer_id_2 = 0
-
-    def _mom_send_to_all_producers(self, message: Message) -> None:
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers_1:
             mom_producer.send(str(message))
 

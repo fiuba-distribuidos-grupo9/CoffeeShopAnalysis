@@ -3,9 +3,6 @@ from typing import Any
 
 from controllers.reducers.shared.reducer import Reducer
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol import constants
 from shared.communication_protocol.batch_message import BatchMessage
@@ -21,9 +18,8 @@ class PurchasesQtyByStoreIdAndUserIdReducer(Reducer):
         consumers_config: dict[str, Any],
     ) -> MessageMiddleware:
         queue_name_prefix = consumers_config["queue_name_prefix"]
-        queue_type = consumers_config["queue_type"]
-        queue_name = f"{queue_name_prefix}-{queue_type}-{self._controller_id}"
-        return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host,queue_name=queue_name)
+        queue_name = f"{queue_name_prefix}-{self._controller_id}"
+        return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
 
     def _build_mom_producer_using(
         self,

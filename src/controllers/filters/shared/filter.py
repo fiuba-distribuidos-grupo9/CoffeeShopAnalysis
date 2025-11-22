@@ -32,31 +32,6 @@ class Filter(Controller):
             rabbitmq_host, consumers_config
         )
 
-    @abstractmethod
-    def _build_mom_producer_using(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-        producer_id: int,
-    ) -> MessageMiddleware:
-        raise NotImplementedError("subclass responsibility")
-
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-    ) -> None:
-        self._current_producer_id = 0
-        self._mom_producers: list[MessageMiddleware] = []
-
-        next_controllers_amount = producers_config["next_controllers_amount"]
-        for producer_id in range(next_controllers_amount):
-            producers = self._build_mom_producer_using(
-                rabbitmq_host, producers_config, producer_id
-            )
-            for i in range(len(producers)):
-                self._mom_producers.append(producers[i])
-
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
     def _stop(self) -> None:
@@ -79,18 +54,18 @@ class Filter(Controller):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
+    @abstractmethod
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        mom_producer = self._mom_producers[self._current_producer_id]
-        mom_producer.send(str(message))
-
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+        raise NotImplementedError("subclass responsibility")
 
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         updated_message = self._transform_batch_message(message)
         if len(updated_message.batch_items()) > 0:
             self._mom_send_message_to_next(updated_message)
+
+    @abstractmethod
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        raise NotImplementedError("subclass responsibility")
 
     def _clean_session_data_of(self, session_id: str) -> None:
         logging.info(
@@ -119,8 +94,7 @@ class Filter(Controller):
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
 
-            for mom_producer in self._mom_producers:
-                mom_producer.send(str(message))
+            self._mom_send_message_through_all_producers(message)
             logging.info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )
@@ -144,10 +118,12 @@ class Filter(Controller):
         super()._run()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
+    @abstractmethod
+    def _close_all_producers(self) -> None:
+        raise NotImplementedError("subclass responsibility")
+
     def _close_all(self) -> None:
-        for mom_producer in self._mom_producers:
-            mom_producer.close()
-            logging.debug("action: mom_producer_close | result: success")
+        self._close_all_producers()
 
         self._mom_consumer.delete()
         self._mom_consumer.close()

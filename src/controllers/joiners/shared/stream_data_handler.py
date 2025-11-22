@@ -3,9 +3,6 @@ import threading
 from typing import Any, Callable, Union
 
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
@@ -26,9 +23,9 @@ class StreamDataHandler:
             "stream_data_prev_controllers_amount"
         ]
 
-        self._mom_consumer: Union[
-            RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange
-        ] = self._build_mom_consumer_using(rabbitmq_host, consumers_config)
+        self._mom_consumer: RabbitMQMessageMiddlewareQueue = (
+            self._build_mom_consumer_using(rabbitmq_host, consumers_config)
+        )
 
     def _init_mom_producers(
         self,
@@ -103,7 +100,7 @@ class StreamDataHandler:
 
     def mom_consumer(
         self,
-    ) -> Union[RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange]:
+    ) -> RabbitMQMessageMiddlewareQueue:
         return self._mom_consumer
 
     # ============================== PRIVATE - JOIN ============================== #

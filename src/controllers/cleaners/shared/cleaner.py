@@ -62,6 +62,10 @@ class Cleaner(Controller):
         updated_message = self._transform_batch_message(message)
         self._mom_send_message_to_next(updated_message)
 
+    @abstractmethod
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        raise NotImplementedError("subclass responsibility")
+
     def _clean_session_data_of(self, session_id: str) -> None:
         logging.info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
@@ -71,17 +75,13 @@ class Cleaner(Controller):
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
-    @abstractmethod
-    def _mom_send_to_all_producers(self, message: Message) -> None:
-        raise NotImplementedError("subclass responsibility")
-
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
         logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        self._mom_send_to_all_producers(message)
+        self._mom_send_message_through_all_producers(message)
         logging.info(f"action: eof_sent | result: success | session_id: {session_id}")
 
         self._clean_session_data_of(session_id)
@@ -109,9 +109,6 @@ class Cleaner(Controller):
 
     def _close_all(self) -> None:
         self._close_all_producers()
-        # for mom_producer in self._mom_producers:
-        #     mom_producer.close()
-        #     logging.debug("action: mom_producer_close | result: success")
 
         self._mom_consumer.delete()
         self._mom_consumer.close()

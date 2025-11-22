@@ -52,21 +52,9 @@ CLEANED_USR_4X_QUEUE_PREFIX = "Q4X__cleaned-users"
 
 # query 1
 
-FILTERED_TRN_BY_YEAR_EXCHANGE_PREFIX = "Q1X__trn-filtered-transactions-by-year-exchange"
-FILTERED_TRN_BY_YEAR_ROUTING_KEY_PREFIX = (
-    "Q1X__trn-filtered-transactions-by-year-routing-key"
-)
-FILTERED_TRN_BY_YEAR_QUEUE_PREFIX = "Q1X__trn-filtered-transactions-by-year"
-FILTERED_TRN_BY_YEAR__HOUR_EXCHANGE_PREFIX = (
-    "Q1X__trn-filtered-transactions-by-year-&-hour-exchange"
-)
-
-FILTERED_TRN_BY_YEAR__HOUR_QUEUE_PREFIX = (
+FILTERED_TRN_BY_YEAR_1X_QUEUE_PREFIX = "Q1X__trn-filtered-transactions-by-year"
+FILTERED_TRN_BY_YEAR__HOUR_1X_QUEUE_PREFIX = (
     "Q1X__trn-filtered-transactions-by-year-&-hour"
-)
-
-FILTERED_TRN_BY_YEAR__HOUR_ROUTING_KEY_PREFIX = (
-    "Q1X__trn-filtered-transactions-by-year-&-hour-routing-key"
 )
 FILTERED_TRN_BY_YEAR__HOUR__FINAL_AMOUNT_QUEUE_PREFIX = (
     "Q1X__trn-filtered-transactions-by-year-&-time-&-final-amount"
@@ -76,18 +64,9 @@ FILTERED_TRN_BY_YEAR__HOUR__FINAL_AMOUNT_QUEUE_PREFIX = (
 
 FILTERED_TIT_BY_YEAR_QUEUE_PREFIX = "Q2X__tit-filtered-transaction-items-by-year"
 
-MAPPED_YEAR_MONTH_TIT_EXHCHANGE_PREFIX = (
-    "Q2X__tit-mapped-year-month-transaction-items-exchange"
-)
-
-MAPPED_YEAR_MONTH_TIT_QUEUE_PREFIX = "Q2X_tit-mapped-year-month-transaction-items"
-
-MAPPED_YEAR_MONTH_TIT_ROUTING_KEY_PREFIX = (
-    "Q2X__tit-mapped-year-month-transaction-items-routing-key"
-)
-
 # query 2.1
 
+MAPPED_YEAR_MONTH_TIT_21_QUEUE_PREFIX = "Q21_tit-mapped-year-month-transaction-items"
 SELLINGS_QTY_BY_YEAR_MONTH_CREATED_AT__ITEM_ID_QUEUE_PREFIX = (
     "Q21__tit-sellings-qty-by-year-month-created-at-&-item-id"
 )
@@ -100,6 +79,7 @@ SORTED_DESC_SELLINGS_QTY_BY_YEAR_MONTH__ITEM_NAME_QUEUE_PREFIX = (
 
 # query 2.2
 
+MAPPED_YEAR_MONTH_TIT_22_QUEUE_PREFIX = "Q22_tit-mapped-year-month-transaction-items"
 PROFIT_SUM_BY_YEAR_MONTH__ITEM_ID_CREATED_AT_QUEUE_PREFIX = (
     "Q22__tit-profit-sum-by-year-month-created-at-&-item-id"
 )
@@ -112,20 +92,21 @@ SORTED_DESC_PROFIT_SUM_BY_YEAR_MONTH__ITEM_NAME_QUEUE_PREFIX = (
 
 # query 3
 
+FILTERED_TRN_BY_YEAR__HOUR_3X_QUEUE_PREFIX = (
+    "Q3X__trn-filtered-transactions-by-year-&-hour"
+)
 MAPPED_TRN_SEMESTER_QUEUE_PREFIX = "Q3X__mapped-year-semester-transaction"
-
 SUM_TRN_TPV_BY_STORE_QUEUE_PREFIX = "Q3X__sum-trn-tpv-by-store"
-
 TPV_BY_HALF_YEAR_CREATED_AT__STORE_NAME_QUEUE_PREFIX = (
     "Q3X__trn-tpv-by-half-year-created-at-&-store-name"
 )
 
 # query 4
 
+FILTERED_TRN_BY_YEAR_4X_QUEUE_PREFIX = "Q4X__trn-filtered-transactions-by-year"
 PURCHASES_QTY_BY_USR_ID__STORE_ID_QUEUE_PREFIX = (
     "Q4X__trn-purchases-qty-by-user-id-&-store-id"
 )
-
 SORTED_DESC_BY_STORE_ID__PURCHASES_QTY_WITH_USER_ID = (
     "Q4X__trn-sorted-desc-by-store-id-&-purchases-qty-with-user-id"
 )

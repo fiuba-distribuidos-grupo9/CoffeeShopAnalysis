@@ -22,13 +22,14 @@ def main():
     logging.info(f"action: init_config | result: success | params: {config_params}")
 
     consumers_config = {
-        "queue_name_prefix": constants.FILTERED_TRN_BY_YEAR_QUEUE_PREFIX,
-        "queue_type": "to-keep-filtering",
+        "queue_name_prefix": constants.FILTERED_TRN_BY_YEAR_1X_QUEUE_PREFIX,
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {
-        "queue_name_prefix": constants.FILTERED_TRN_BY_YEAR__HOUR_QUEUE_PREFIX,
-        "next_controllers_amount": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "queue_name_prefix_1": constants.FILTERED_TRN_BY_YEAR__HOUR_1X_QUEUE_PREFIX,
+        "queue_name_prefix_2": constants.FILTERED_TRN_BY_YEAR__HOUR_3X_QUEUE_PREFIX,
+        "next_controllers_amount_1": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "next_controllers_amount_2": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
     }
 
     controller = FilterTransactionsByHour(

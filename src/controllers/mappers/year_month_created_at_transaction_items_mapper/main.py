@@ -24,8 +24,10 @@ def main():
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {
-        "queue_name_prefix": constants.MAPPED_YEAR_MONTH_TIT_QUEUE_PREFIX,
-        "next_controllers_amount": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "queue_name_prefix_1": constants.MAPPED_YEAR_MONTH_TIT_21_QUEUE_PREFIX,
+        "queue_name_prefix_2": constants.MAPPED_YEAR_MONTH_TIT_22_QUEUE_PREFIX,
+        "next_controllers_amount_1": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "next_controllers_amount_2": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
     }
 
     controller = YearMonthCreatedAtTransactionItemsMapper(

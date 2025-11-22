@@ -2,9 +2,6 @@ import logging
 import threading
 from typing import Any, Callable, Union
 
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
@@ -25,9 +22,9 @@ class BaseDataHandler:
             "base_data_prev_controllers_amount"
         ]
 
-        self._mom_consumer: Union[
-            RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange
-        ] = self._build_mom_consumer_using(rabbitmq_host, consumers_config)
+        self._mom_consumer: RabbitMQMessageMiddlewareQueue = (
+            self._build_mom_consumer_using(rabbitmq_host, consumers_config)
+        )
 
     def __init__(
         self,
@@ -71,9 +68,7 @@ class BaseDataHandler:
     def _is_running(self) -> bool:
         return not self.is_stopped.is_set()
 
-    def mom_consumer(
-        self,
-    ) -> Union[RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange]:
+    def mom_consumer(self) -> RabbitMQMessageMiddlewareQueue:
         return self._mom_consumer
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #

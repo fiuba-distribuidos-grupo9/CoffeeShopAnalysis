@@ -74,7 +74,7 @@ class UsersCleaner(Cleaner):
             )
             mom_producer.send(str(message))
 
-    def _mom_send_to_all_producers(self, message: Message) -> None:
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers:
             mom_producer.send(str(message))
 
