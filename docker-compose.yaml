@@ -81,14 +81,6 @@ services:
     depends_on:
       rabbitmq-message-middleware:
         condition: service_healthy
-      transaction_items_with_menu_items_query_21_joiner_0:
-        condition: service_started
-      transaction_items_with_menu_items_query_22_joiner_0:
-        condition: service_started
-      transactions_with_stores_query_3x_joiner_0:
-        condition: service_started
-      transactions_with_stores_query_4x_joiner_0:
-        condition: service_started
 
   # ============================== CLEANERS SERVICES ============================== #
 
