@@ -28,7 +28,7 @@ class StreamDataHandler:
 
         self._mom_consumer: Union[
             RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange
-        ] = self._build_mom_consumer(rabbitmq_host, consumers_config)
+        ] = self._build_mom_consumer_using(rabbitmq_host, consumers_config)
 
     def _init_mom_producers(
         self,
@@ -40,7 +40,7 @@ class StreamDataHandler:
 
         next_controllers_amount = producers_config["next_controllers_amount"]
         for producer_id in range(next_controllers_amount):
-            mom_producer = self._build_mom_producer(
+            mom_producer = self._build_mom_producer_using(
                 rabbitmq_host, producers_config, producer_id
             )
             self._mom_producers.append(mom_producer)
@@ -63,8 +63,8 @@ class StreamDataHandler:
     ) -> None:
         self._controller_id = controller_id
 
-        self._build_mom_consumer = build_mom_consumer
-        self._build_mom_producer = build_mom_producer
+        self._build_mom_consumer_using = build_mom_consumer
+        self._build_mom_producer_using = build_mom_producer
 
         self._init_mom_consumers(rabbitmq_host, consumers_config)
         self._init_mom_producers(rabbitmq_host, producers_config)

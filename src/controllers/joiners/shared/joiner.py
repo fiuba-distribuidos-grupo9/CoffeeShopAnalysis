@@ -28,7 +28,7 @@ class Joiner(Controller):
         raise NotImplementedError("subclass responsibility")
 
     @abstractmethod
-    def _build_mom_producer(
+    def _build_mom_producer_using(
         self,
         rabbitmq_host: str,
         producers_config: dict[str, Any],
@@ -41,6 +41,7 @@ class Joiner(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
+        # do nothing
         pass
 
     def _init_mom_producers(
@@ -48,6 +49,7 @@ class Joiner(Controller):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
+        # do nothing
         pass
 
     def __init__(
@@ -139,7 +141,7 @@ class Joiner(Controller):
                 consumers_config=self._consumers_config,
                 producers_config=self._producers_config,
                 build_mom_consumer=self._build_mom_stream_data_consumer,
-                build_mom_producer=self._build_mom_producer,
+                build_mom_producer=self._build_mom_producer_using,
                 base_data_by_session_id=self._base_data_by_session_id,
                 base_data_by_session_id_lock=self._base_data_by_session_id_lock,
                 all_base_data_received=self._all_base_data_received,

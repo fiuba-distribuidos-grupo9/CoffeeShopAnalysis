@@ -21,8 +21,7 @@ def main():
     logging.info(f"action: init_config | result: success | params: {config_params}")
 
     consumers_config = {
-        "base_data_exchange_name_prefix": constants.CLEANED_STR_EXCHANGE_PREFIX,
-        "base_data_routing_key_prefix": constants.CLEANED_STR_ROUTING_KEY_PREFIX,
+        "base_data_queue_name_prefix": constants.CLEANED_STR_4X_QUEUE_PREFIX,
         "base_data_prev_controllers_amount": int(
             config_params["BASE_DATA_PREV_CONTROLLERS_AMOUNT"]
         ),

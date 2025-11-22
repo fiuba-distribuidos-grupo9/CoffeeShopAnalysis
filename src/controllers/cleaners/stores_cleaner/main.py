@@ -10,7 +10,7 @@ def main():
             "LOGGING_LEVEL",
             "CONTROLLER_ID",
             "RABBITMQ_HOST",
-            "NEXT_CONTROLLERS_AMOUNT",
+            "NEXT_CONTROLLERS_AMOUNT",  # @TODO: add another env variable
         ]
     )
     initializer.init_log(config_params["LOGGING_LEVEL"])
@@ -20,9 +20,10 @@ def main():
         "queue_name_prefix": constants.DIRTY_STR_QUEUE_PREFIX,
     }
     producers_config = {
-        "exchange_name_prefix": constants.CLEANED_STR_EXCHANGE_PREFIX,
-        "routing_key_prefix": constants.CLEANED_STR_ROUTING_KEY_PREFIX,
-        "next_controllers_amount": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "queue_name_prefix_1": constants.CLEANED_STR_3X_QUEUE_PREFIX,
+        "queue_name_prefix_2": constants.CLEANED_STR_4X_QUEUE_PREFIX,
+        "next_controllers_amount_1": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
+        "next_controllers_amount_2": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
     }
 
     cleaner = StoresCleaner(

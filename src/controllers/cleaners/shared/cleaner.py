@@ -3,7 +3,6 @@ from abc import abstractmethod
 from typing import Any
 
 from controllers.shared.controller import Controller
-from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
@@ -24,28 +23,6 @@ class Cleaner(Controller):
         self._mom_consumer = RabbitMQMessageMiddlewareQueue(
             host=rabbitmq_host, queue_name=queue_name
         )
-
-    @abstractmethod
-    def _build_mom_producer_using(
-        self, rabbitmq_host: str, producers_config: dict[str, Any], producer_id: int
-    ) -> MessageMiddleware:
-        raise NotImplementedError("subclass responsibility")
-
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-    ) -> None:
-        self._current_producer_id = 0
-        self._mom_producers: list[MessageMiddleware] = []
-
-        self.next_controllers_amount = producers_config["next_controllers_amount"]
-        for producer_id in range(self.next_controllers_amount):
-            producers = self._build_mom_producer_using(
-                rabbitmq_host, producers_config, producer_id
-            )
-            for i in range(len(producers)):
-                self._mom_producers.append(producers[i])
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -94,14 +71,17 @@ class Cleaner(Controller):
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
+    @abstractmethod
+    def _mom_send_to_all_producers(self, message: Message) -> None:
+        raise NotImplementedError("subclass responsibility")
+
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
         logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        for mom_producer in self._mom_producers:
-            mom_producer.send(str(message))
+        self._mom_send_to_all_producers(message)
         logging.info(f"action: eof_sent | result: success | session_id: {session_id}")
 
         self._clean_session_data_of(session_id)
@@ -123,10 +103,15 @@ class Cleaner(Controller):
         super()._run()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
+    @abstractmethod
+    def _close_all_producers(self) -> None:
+        raise NotImplementedError("subclass responsibility")
+
     def _close_all(self) -> None:
-        for mom_producer in self._mom_producers:
-            mom_producer.close()
-            logging.debug("action: mom_producer_producer_close | result: success")
+        self._close_all_producers()
+        # for mom_producer in self._mom_producers:
+        #     mom_producer.close()
+        #     logging.debug("action: mom_producer_close | result: success")
 
         self._mom_consumer.delete()
         self._mom_consumer.close()

@@ -147,7 +147,7 @@ class Filter(Controller):
     def _close_all(self) -> None:
         for mom_producer in self._mom_producers:
             mom_producer.close()
-            logging.debug("action: mom_producer_producer_close | result: success")
+            logging.debug("action: mom_producer_close | result: success")
 
         self._mom_consumer.delete()
         self._mom_consumer.close()

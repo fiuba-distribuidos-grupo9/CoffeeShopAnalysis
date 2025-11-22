@@ -27,7 +27,7 @@ class BaseDataHandler:
 
         self._mom_consumer: Union[
             RabbitMQMessageMiddlewareQueue, RabbitMQMessageMiddlewareExchange
-        ] = self._build_mom_consumer(rabbitmq_host, consumers_config)
+        ] = self._build_mom_consumer_using(rabbitmq_host, consumers_config)
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class BaseDataHandler:
     ) -> None:
         self._controller_id = controller_id
 
-        self._build_mom_consumer = build_mom_consumer
+        self._build_mom_consumer_using = build_mom_consumer
 
         self._init_mom_consumers(rabbitmq_host, consumers_config)
 

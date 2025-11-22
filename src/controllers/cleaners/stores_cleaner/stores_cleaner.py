@@ -1,12 +1,11 @@
+import logging
 from typing import Any
-import uuid
 
 from controllers.cleaners.shared.cleaner import Cleaner
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
+from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.message import Message
 
 
 class StoresCleaner(Cleaner):
@@ -15,14 +14,38 @@ class StoresCleaner(Cleaner):
 
     def _build_mom_producer_using(
         self, rabbitmq_host: str, producers_config: dict[str, Any], producer_id: int
-    ) -> MessageMiddleware:
-        exchange_name = producers_config["exchange_name_prefix"]
-        routing_key = f"{producers_config["routing_key_prefix"]}.{producer_id}"
-        return [RabbitMQMessageMiddlewareExchange(
-            host=rabbitmq_host,
-            exchange_name=exchange_name,
-            route_keys=[routing_key],
-        )]
+    ) -> tuple[MessageMiddleware, MessageMiddleware]:
+        queue_name_prefix_1 = producers_config["queue_name_prefix_1"]
+        queue_name_1 = f"{queue_name_prefix_1}-{producer_id}"
+        mom_producer_1 = RabbitMQMessageMiddlewareQueue(
+            host=rabbitmq_host, queue_name=queue_name_1
+        )
+
+        queue_name_prefix_2 = producers_config["queue_name_prefix_2"]
+        queue_name_2 = f"{queue_name_prefix_2}-{producer_id}"
+        mom_producer_2 = RabbitMQMessageMiddlewareQueue(
+            host=rabbitmq_host, queue_name=queue_name_2
+        )
+        return (mom_producer_1, mom_producer_2)
+
+    def _init_mom_producers(
+        self,
+        rabbitmq_host: str,
+        producers_config: dict[str, Any],
+    ) -> None:
+        self._current_producer_id_1 = 0
+        self._current_producer_id_2 = 0
+        self._mom_producers_1: list[MessageMiddleware] = []
+        self._mom_producers_2: list[MessageMiddleware] = []
+
+        self.next_controllers_amount_1 = producers_config["next_controllers_amount_1"]
+        self.next_controllers_amount_2 = producers_config["next_controllers_amount_2"]
+        for producer_id in range(self.next_controllers_amount_1):
+            (mom_producer_1, mom_producer_2) = self._build_mom_producer_using(
+                rabbitmq_host, producers_config, producer_id
+            )
+            self._mom_producers_1.append(mom_producer_1)
+            self._mom_producers_2.append(mom_producer_2)
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -34,10 +57,35 @@ class StoresCleaner(Cleaner):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next(self, message: BatchMessage) -> None:        
-        mom_producer = self._mom_producers[self._current_producer_id]
-        mom_producer.send(str(message))
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        mom_producer_1 = self._mom_producers_1[self._current_producer_id_1]
+        mom_producer_1.send(str(message))
 
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+        self._current_producer_id_1 += 1
+        if self._current_producer_id_1 >= len(self._mom_producers_1):
+            self._current_producer_id_1 = 0
+
+        mom_producer_2 = self._mom_producers_2[self._current_producer_id_2]
+        mom_producer_2.send(str(message))
+
+        self._current_producer_id_2 += 1
+        if self._current_producer_id_2 >= len(self._mom_producers_2):
+            self._current_producer_id_2 = 0
+
+    def _mom_send_to_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers_1:
+            mom_producer.send(str(message))
+
+        for mom_producer in self._mom_producers_2:
+            mom_producer.send(str(message))
+
+    # ============================== PRIVATE - RUN ============================== #
+
+    def _close_all_producers(self) -> None:
+        for mom_producer in self._mom_producers_1:
+            mom_producer.close()
+            logging.debug("action: mom_producer_close | result: success")
+
+        for mom_producer in self._mom_producers_2:
+            mom_producer.close()
+            logging.debug("action: mom_producer_close | result: success")
