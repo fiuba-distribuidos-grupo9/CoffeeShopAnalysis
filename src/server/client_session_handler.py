@@ -175,40 +175,6 @@ class ClientSessionHandler:
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    # REMOVED AFTER TESTING
-    def _mom_send_message_to_next_using(
-        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
-    ) -> None:
-        batch_items_by_hash: dict[int, list] = {}
-        # [IMPORTANT] this must consider the next controller's grouping key
-        sharding_key = "user_id"
-
-        for batch_item in message.batch_items():
-            if batch_item[sharding_key] == "":
-                # [IMPORTANT] If sharding value is empty, the hash will fail
-                # but we are going to assign it to the first reducer anyway
-                hash = 0
-                batch_items_by_hash.setdefault(hash, [])
-                batch_items_by_hash[hash].append(batch_item)
-                continue
-            sharding_value = int(float(batch_item[sharding_key]))
-            batch_item[sharding_key] = str(sharding_value)
-
-            hash = sharding_value % len(mom_producers)
-            batch_items_by_hash.setdefault(hash, [])
-            batch_items_by_hash[hash].append(batch_item)
-
-        for hash, batch_items in batch_items_by_hash.items():
-            mom_producer = mom_producers[hash]
-            message = BatchMessage(
-                message_type=message.message_type(),
-                session_id=message.session_id(),
-                message_id=uuid.uuid4().hex,
-                controller_id="0",
-                batch_items=batch_items,
-            )
-            mom_producer.send(str(message))
-
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
         data_type = message.message_type()
         mom_producers = self._mom_cleaners_connections[data_type]

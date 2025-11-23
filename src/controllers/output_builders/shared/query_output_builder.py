@@ -118,7 +118,7 @@ class QueryOutputBuilder(Controller):
 
             message = EOFMessage(
                 session_id=session_id,
-                message_id=uuid.uuid4().hex,
+                message_id=uuid.UUID(int=0).hex,
                 controller_id=str(self._controller_id),
                 batch_message_type=self._output_message_type(),
             )

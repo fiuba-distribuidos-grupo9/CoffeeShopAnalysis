@@ -76,7 +76,7 @@ class ProfitSumByItemIdAndYearMonthCreatedAtReducer(Reducer):
             message = BatchMessage(
                 message_type=message.message_type(),
                 session_id=message.session_id(),
-                message_id=uuid.uuid4().hex,
+                message_id=message.message_id(),
                 controller_id=str(self._controller_id),
                 batch_items=batch_items,
             )
