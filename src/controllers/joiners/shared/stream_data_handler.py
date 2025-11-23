@@ -158,6 +158,7 @@ class StreamDataHandler:
         for batch_message in batch_messages:
             joined_message = self._join_with_base_data(batch_message)
             if len(joined_message.batch_items()) > 0:
+                joined_message.update_controller_id(str(self._controller_id))
                 self._mom_send_message_to_next(joined_message)
         self._stream_data_buffer_by_session_id[session_id] = []
 
@@ -194,6 +195,10 @@ class StreamDataHandler:
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers:
+            mom_producer.send(str(message))
+
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
         self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
@@ -215,16 +220,19 @@ class StreamDataHandler:
                 self._log_info(
                     f"action: all_eofs_received | result: success | session_id: {session_id}"
                 )
+
                 self._send_all_buffered_messages(session_id)
 
-                for mom_producer in self._mom_producers:
-                    mom_producer.send(str(message))
+                message.update_controller_id(str(self._controller_id))
+                self._mom_send_message_through_all_producers(message)
                 self._log_info(
                     f"action: eof_sent | result: success | session_id: {session_id}"
                 )
 
                 self._clean_session_data_of(session_id)
             else:
+                # @TODO: this can be improved
+                # requeue the EOF message to be processed later
                 self._log_debug(
                     f"action: all_eofs_received_before_base_data | result: success | session_id: {session_id}"
                 )

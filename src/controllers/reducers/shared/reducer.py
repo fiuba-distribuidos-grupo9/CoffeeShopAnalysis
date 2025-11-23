@@ -169,6 +169,10 @@ class Reducer(Controller):
         for batch_item in message.batch_items():
             self._reduce_by_keys(session_id, batch_item)
 
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers:
+            mom_producer.send(str(message))
+
     def _clean_session_data_of(self, session_id: str) -> None:
         logging.info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
@@ -195,11 +199,11 @@ class Reducer(Controller):
             logging.info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
-
+            
             self._send_all_data_using_batchs(session_id)
 
-            for mom_producer in self._mom_producers:
-                mom_producer.send(str(message))
+            message.update_controller_id(str(self._controller_id))
+            self._mom_send_message_through_all_producers(message)
             logging.info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )

@@ -76,6 +76,7 @@ class ClientSessionHandler:
     ) -> None:
         self._client_socket = client_socket
         self._session_id = uuid.uuid4().hex
+        self._controller_id = 0
 
         self._set_as_not_running()
         signal.signal(signal.SIGTERM, self._sigterm_signal_handler)
@@ -184,6 +185,15 @@ class ClientSessionHandler:
         mom_producer = mom_producers[hash]
         mom_producer.send(str(message))
 
+    def _mom_send_message_through_all_producers(self, message: EOFMessage) -> None:
+        data_type = message.batch_message_type()
+
+        mom_producers = self._mom_cleaners_connections[data_type]
+        for mom_producer in mom_producers:
+            message.update_message_id(uuid.uuid4().hex)
+            message.update_controller_id(str(self._controller_id))
+            mom_producer.send(str(message))
+
     # ============================== PRIVATE - RECEIVE CLIENT HANDSHAKE ============================== #
 
     def _send_client_handshake_message(
@@ -214,7 +224,7 @@ class ClientSessionHandler:
 
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         message.update_message_id(uuid.uuid4().hex)
-        message.update_controller_id("0")
+        message.update_controller_id(str(self._controller_id))
 
         self._mom_send_message_to_next(message)
 
@@ -227,11 +237,8 @@ class ClientSessionHandler:
         self._client_eof_received[data_type] = True
         self._log_info(f"action: {data_type}_eof_received | result: success")
 
-        for mom_producer in self._mom_cleaners_connections[data_type]:
-            message.update_message_id(uuid.uuid4().hex)
-            message.update_controller_id("0")
-
-            mom_producer.send(str(message))
+        self._mom_send_message_through_all_producers(message)
+        self._log_info(f"action: {data_type}_eof_sent | result: success")
 
     def _handle_client_message(self, message: Message) -> None:
         if isinstance(message, BatchMessage):

@@ -60,6 +60,7 @@ class Cleaner(Controller):
 
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         updated_message = self._transform_batch_message(message)
+        message.update_controller_id(str(self._controller_id))
         self._mom_send_message_to_next(updated_message)
 
     @abstractmethod
@@ -81,8 +82,11 @@ class Cleaner(Controller):
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
+        message.update_controller_id(str(self._controller_id))
         self._mom_send_message_through_all_producers(message)
-        logging.info(f"action: eof_sent | result: success | session_id: {session_id}")
+        logging.info(
+            f"action: eof_sent | result: success | session_id: {session_id}",
+        )
 
         self._clean_session_data_of(session_id)
 

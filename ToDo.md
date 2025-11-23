@@ -1,7 +1,4 @@
 ToDo list:
-- all EOF should be send with 0 uuid, the flush too, because it is identified by other things. 
-- change controller ids on each controller
-- sharding on each controller
 - cuando ahora partimos cada mensaje en por ej el user_cleaners, vamos a generar un problema si se cae justo cuando se envio uno, a menos que los guardemos antes de enviarlos por si justo se cae ahi (como haceoms en los nodos statefull). La otra es que shardeemos por usuario, y con esto nos sacamos el problema de encima, pero si tenemos mucha mala suerte podria quedar todo super desbalanceado. Tambien nos va a pasar para los mensajes que duplicamos a mano, que ahora se estan mandando dos mensajes con el mismo id. Creo que esto no va a generar problemas igual porque se usa como info base o la info termina en queries distintas y nunca va conflictuar.  
 - cada controller tiene que guardar el ultimo mensaje que le mando el anterior controller (segun el id). No se si convendra hacer eso para los eof. 
 

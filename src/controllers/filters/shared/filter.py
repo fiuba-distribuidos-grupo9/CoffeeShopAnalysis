@@ -61,6 +61,7 @@ class Filter(Controller):
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         updated_message = self._transform_batch_message(message)
         if len(updated_message.batch_items()) > 0:
+            message.update_controller_id(str(self._controller_id))
             self._mom_send_message_to_next(updated_message)
 
     @abstractmethod
@@ -82,7 +83,7 @@ class Filter(Controller):
         session_id = message.session_id()
         self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
         self._eof_recv_from_prev_controllers[session_id] += 1
-        logging.debug(
+        logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
@@ -94,6 +95,7 @@ class Filter(Controller):
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
 
+            message.update_controller_id(str(self._controller_id))
             self._mom_send_message_through_all_producers(message)
             logging.info(
                 f"action: eof_sent | result: success | session_id: {session_id}"

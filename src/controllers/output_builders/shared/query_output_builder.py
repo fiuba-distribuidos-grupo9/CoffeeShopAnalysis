@@ -82,6 +82,7 @@ class QueryOutputBuilder(Controller):
                 self._rabbitmq_host, f"{self._queue_name_prefix}-{session_id}"
             ),
         )
+        message.update_controller_id(str(self._controller_id))
         self._mom_producers[session_id].send(str(updated_message))
 
     def _clean_session_data_of(self, session_id: str) -> None:
@@ -128,6 +129,7 @@ class QueryOutputBuilder(Controller):
                     self._rabbitmq_host, f"{self._queue_name_prefix}-{session_id}"
                 ),
             )
+            message.update_controller_id(str(self._controller_id))
             self._mom_producers[session_id].send(str(message))
             logging.info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
