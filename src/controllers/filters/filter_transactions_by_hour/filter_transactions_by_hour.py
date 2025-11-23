@@ -86,16 +86,17 @@ class FilterTransactionsByHour(Filter):
 
     # ============================== PRIVATE - SEND DATA ============================== #
 
-    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+    def _mom_send_message_to_next_fairly(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
         sharding_value = simple_hash(message.message_id())
-        hash = sharding_value % len(self._mom_producers_1)
-        mom_producer = self._mom_producers_1[hash]
+        hash = sharding_value % len(mom_producers)
+        mom_producer = mom_producers[hash]
         mom_producer.send(str(message))
 
-        sharding_value = simple_hash(message.message_id())
-        hash = sharding_value % len(self._mom_producers_2)
-        mom_producer = self._mom_producers_2[hash]
-        mom_producer.send(str(message))
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        self._mom_send_message_to_next_fairly(message, self._mom_producers_1)
+        self._mom_send_message_to_next_fairly(message, self._mom_producers_2)
 
     def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers_1:

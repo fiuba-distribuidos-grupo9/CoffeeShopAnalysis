@@ -7,6 +7,7 @@ from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.message import Message
+from shared.simple_hash import simple_hash
 
 
 class FilterTransactionsByYear(Filter):
@@ -83,7 +84,7 @@ class FilterTransactionsByYear(Filter):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next_using(
+    def _mom_send_message_to_next_sharding(
         self, message: BatchMessage, mom_producers: list[MessageMiddleware]
     ) -> None:
         batch_items_by_hash: dict[int, list] = {}
@@ -116,9 +117,17 @@ class FilterTransactionsByYear(Filter):
             )
             mom_producer.send(str(message))
 
+    def _mom_send_message_to_next_fairly(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(mom_producers)
+        mom_producer = mom_producers[hash]
+        mom_producer.send(str(message))
+
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        self._mom_send_message_to_next_using(message, self._mom_producers_1)
-        self._mom_send_message_to_next_using(message, self._mom_producers_2)
+        self._mom_send_message_to_next_sharding(message, self._mom_producers_1)
+        self._mom_send_message_to_next_fairly(message, self._mom_producers_2)
 
     def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers_1:
