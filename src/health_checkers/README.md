@@ -48,7 +48,7 @@ Ver `.env.example`. Lo mínimo:
 
 ```bash
 
-docker build -t tp-health-checker -f Dockerfile .
+make build
 
 ```
 
@@ -56,7 +56,7 @@ docker build -t tp-health-checker -f Dockerfile .
 
 ```bash
 
-./run_ring.sh
+make up
 
 ```
 
@@ -64,9 +64,7 @@ Luego para detener y borrar esos contenedores de forma rápida se puede utilizar
 
 ```bash
 
-docker kill hc1_container hc2_container hc3_container
-
-docker rm -f hc1_container hc2_container hc3_container 2>/dev/null
+make down
 
 ```
 
@@ -74,23 +72,30 @@ docker rm -f hc1_container hc2_container hc3_container 2>/dev/null
 
 ```bash
 
-docker logs -f $(docker ps -q --filter ancestor=tp-health-checker)
+make logs
 
 ```
 
+### 🐳 Ver logs de cada nodo
+
+```bash
+
+make logs1
+
+make logs2
+
+make logs3
+
+```
 
 ### 🐳 Tirar un nodo
 
 ```bash
 
-docker stop hc'$NUMERO_CONTENEDOR'_container
+make stop1
 
-```
+make stop2
 
-#### Ejemplo
-
-```bash
-
-docker stop hc2_container
+make stop3
 
 ```
