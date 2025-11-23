@@ -5,6 +5,7 @@ from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol import constants
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.simple_hash import simple_hash
 
 
 class DescByYearMonthCreatedAtAndSellingsQtySorter(Sorter):
@@ -47,9 +48,7 @@ class DescByYearMonthCreatedAtAndSellingsQtySorter(Sorter):
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        mom_cleaned_data_producer = self._mom_producers[self._current_producer_id]
-        mom_cleaned_data_producer.send(str(message))
-
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(self._mom_producers)
+        mom_producer = self._mom_producers[hash]
+        mom_producer.send(str(message))

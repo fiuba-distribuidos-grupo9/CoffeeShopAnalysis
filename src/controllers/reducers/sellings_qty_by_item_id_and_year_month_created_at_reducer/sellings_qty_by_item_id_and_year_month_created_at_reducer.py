@@ -6,6 +6,7 @@ from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol import constants
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.simple_hash import simple_hash
 
 
 class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
@@ -51,14 +52,6 @@ class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _simple_hash(self, value: str) -> int:
-        hash_value = 0
-        prime_multiplier = 31
-        for char in value:
-            char_value = ord(char)
-            hash_value = (hash_value * prime_multiplier) + char_value
-        return hash_value
-
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
         batch_items_by_hash: dict[int, list] = {}
         # [IMPORTANT] this must consider the next controller's grouping key
@@ -72,7 +65,7 @@ class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
                 batch_items_by_hash.setdefault(hash, [])
                 batch_items_by_hash[hash].append(batch_item)
                 continue
-            sharding_value = self._simple_hash(batch_item[sharding_key])
+            sharding_value = simple_hash(batch_item[sharding_key])
 
             hash = sharding_value % len(self._mom_producers)
             batch_items_by_hash.setdefault(hash, [])

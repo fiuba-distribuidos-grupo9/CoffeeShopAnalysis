@@ -43,8 +43,6 @@ class FilterTransactionsByYear(Filter):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id_1 = 0
-        self._current_producer_id_2 = 0
         self._mom_producers_1: list[MessageMiddleware] = []
         self._mom_producers_2: list[MessageMiddleware] = []
 

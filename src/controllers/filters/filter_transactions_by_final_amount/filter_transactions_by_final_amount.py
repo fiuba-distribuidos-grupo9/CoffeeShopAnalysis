@@ -6,6 +6,7 @@ from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.message import Message
+from shared.simple_hash import simple_hash
 
 
 class FilterTransactionsByFinalAmount(Filter):
@@ -36,7 +37,6 @@ class FilterTransactionsByFinalAmount(Filter):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id = 0
         self._mom_producers: list[MessageMiddleware] = []
 
         next_controllers_amount = producers_config["next_controllers_amount"]
@@ -72,12 +72,10 @@ class FilterTransactionsByFinalAmount(Filter):
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        mom_producer = self._mom_producers[self._current_producer_id]
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(self._mom_producers)
+        mom_producer = self._mom_producers[hash]
         mom_producer.send(str(message))
-
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
 
     def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers:

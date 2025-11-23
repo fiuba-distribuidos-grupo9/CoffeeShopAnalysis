@@ -48,7 +48,6 @@ class Reducer(Controller):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id = 0
         self._mom_producers: list[MessageMiddleware] = []
 
         next_controllers_amount = producers_config["next_controllers_amount"]
@@ -136,13 +135,9 @@ class Reducer(Controller):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
+    @abstractmethod
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        mom_cleaned_data_producer = self._mom_producers[self._current_producer_id]
-        mom_cleaned_data_producer.send(str(message))
-
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+        raise NotImplementedError("subclass responsibility")
 
     def _send_all_data_using_batchs(self, session_id: str) -> None:
         logging.debug(

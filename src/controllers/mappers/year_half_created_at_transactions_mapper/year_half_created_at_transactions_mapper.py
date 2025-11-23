@@ -37,7 +37,6 @@ class YearHalfCreatedAtTransactonsMapper(Mapper):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id = 0
         self._mom_producers: list[MessageMiddleware] = []
 
         next_controllers_amount = producers_config["next_controllers_amount"]

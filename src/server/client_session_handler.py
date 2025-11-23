@@ -5,6 +5,7 @@ import socket
 import uuid
 from typing import Any, Callable
 
+from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared import constants
 from shared.communication_protocol import constants as cp_constants
@@ -12,6 +13,7 @@ from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.handshake_message import HandshakeMessage
 from shared.communication_protocol.message import Message
+from shared.simple_hash import simple_hash
 
 
 class ClientSessionHandler:
@@ -20,8 +22,6 @@ class ClientSessionHandler:
 
     def _init_cleaners_data(self, cleaners_data: dict) -> None:
         self._cleaners_data = cleaners_data
-        for data_type in self._cleaners_data.keys():
-            self._cleaners_data[data_type]["current_worker_id"] = 0
 
     def _init_output_builders_data(self, output_builders_data: dict) -> None:
         self._output_builders_data = output_builders_data
@@ -175,20 +175,48 @@ class ClientSessionHandler:
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
+    # REMOVED AFTER TESTING
+    def _mom_send_message_to_next_using(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
+        batch_items_by_hash: dict[int, list] = {}
+        # [IMPORTANT] this must consider the next controller's grouping key
+        sharding_key = "user_id"
+
+        for batch_item in message.batch_items():
+            if batch_item[sharding_key] == "":
+                # [IMPORTANT] If sharding value is empty, the hash will fail
+                # but we are going to assign it to the first reducer anyway
+                hash = 0
+                batch_items_by_hash.setdefault(hash, [])
+                batch_items_by_hash[hash].append(batch_item)
+                continue
+            sharding_value = int(float(batch_item[sharding_key]))
+            batch_item[sharding_key] = str(sharding_value)
+
+            hash = sharding_value % len(mom_producers)
+            batch_items_by_hash.setdefault(hash, [])
+            batch_items_by_hash[hash].append(batch_item)
+
+        for hash, batch_items in batch_items_by_hash.items():
+            mom_producer = mom_producers[hash]
+            message = BatchMessage(
+                message_type=message.message_type(),
+                session_id=message.session_id(),
+                message_id=uuid.uuid4().hex,
+                controller_id="0",
+                batch_items=batch_items,
+            )
+            mom_producer.send(str(message))
+
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
         data_type = message.message_type()
-        current_worker_id = self._cleaners_data[data_type]["current_worker_id"]
-
         mom_producers = self._mom_cleaners_connections[data_type]
-        mom_producer: RabbitMQMessageMiddlewareQueue = mom_producers[current_worker_id]
+
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(mom_producers)
+        mom_producer = mom_producers[hash]
         mom_producer.send(str(message))
-
-        current_worker_id += 1
-
-        workers_amount = self._cleaners_data[data_type][constants.WORKERS_AMOUNT]
-        if current_worker_id == workers_amount:
-            current_worker_id = 0
-        self._cleaners_data[data_type]["current_worker_id"] = current_worker_id
 
     # ============================== PRIVATE - RECEIVE CLIENT HANDSHAKE ============================== #
 
