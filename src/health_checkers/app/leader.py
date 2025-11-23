@@ -1,4 +1,3 @@
-# src/health_checkers/app/leader.py
 from __future__ import annotations
 import threading
 import time
@@ -36,7 +35,6 @@ class LeaderLoop:
     def _loop(self) -> None:
         while self._running.is_set():
             if self.is_leader():
-                # Acá va la lógica “real” de validación de nodos (por ahora es un print).
                 print(f"[leader] Nodo líder {self.cfg.node_id} validando nodos del sistema (placeholder)…")
                 time.sleep(5.0)
             else:

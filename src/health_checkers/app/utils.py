@@ -1,5 +1,5 @@
-# src/health_checkers/app/utils.py
 from __future__ import annotations
+
 import os, random
 from typing import Dict, List
 from pydantic import ValidationError
@@ -17,11 +17,9 @@ def parse_peers(peers_env: str) -> List[Peer]:
         item = item.strip()
         if not item: 
             continue
-        # id@host:port ((Optional name as host).
         id_part, addr = item.split("@", 1)
         host, port = addr.split(":", 1)
         peers.append(Peer(id=int(id_part), host=host, port=int(port), name=host))
-    # Sort by ID for stable order.
     peers.sort(key=lambda p: p.id)
     return peers
 

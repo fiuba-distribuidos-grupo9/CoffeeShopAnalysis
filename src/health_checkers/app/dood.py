@@ -1,4 +1,3 @@
-# src/health_checkers/app/dood.py
 from __future__ import annotations
 from typing import Optional
 import docker

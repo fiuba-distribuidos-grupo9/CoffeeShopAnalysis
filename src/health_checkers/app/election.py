@@ -1,4 +1,3 @@
-# src/health_checkers/app/election.py
 from __future__ import annotations
 import threading
 import time
@@ -39,7 +38,7 @@ class Election:
                 src_name=self.cfg.node_name,
                 payload={"candidate_id": self.cfg.node_id},
             )
-            # Backoff aleatorio para evitar tormentas simultáneas.
+
             time.sleep(jitter_ms(self.cfg.election_backoff_ms_min, self.cfg.election_backoff_ms_max))
             self.send_to_successor(msg)
         finally:
@@ -54,7 +53,6 @@ class Election:
         my = self.cfg.node_id
 
         if cid == my:
-            # Gané
             self._leader_id = my
             announce = Message(
                 kind="coordinator",
@@ -66,10 +64,8 @@ class Election:
             return
 
         if cid > my:
-            # Reenvío intacto
             self.send_to_successor(msg)
         else:
-            # Me postulo yo
             new_msg = Message(
                 kind="election",
                 src_id=my,

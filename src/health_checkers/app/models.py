@@ -1,4 +1,3 @@
-# src/health_checkers/app/models.py
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional, Literal
 from pydantic import BaseModel, Field, ValidationError
@@ -29,18 +28,18 @@ class Config(BaseModel):
     mode: Literal["auto","manual"] = "auto"
     log_level: Literal["DEBUG","INFO","WARNING","ERROR"] = "INFO"
 
-    revive_targets: Dict[str, str] = Field(default_factory=dict)  # node_name -> container_name.
+    revive_targets: Dict[str, str] = Field(default_factory=dict)
     docker_host: Optional[str] = "unix:///var/run/docker.sock"
 
 class Message(BaseModel):
     kind: Literal[
-        "heartbeat",       # neighbor liveness.
-        "election",        # Chang–Roberts: Proposal.
-        "election_ok",     # Participation ack.
-        "coordinator",     # Leader announcement.
-        "whois",           # (Optional) consultation.
-        "iam",             # (Optional) response.
-        "probe",           # Placeholder global leader pings.
+        "heartbeat",
+        "election",
+        "election_ok",
+        "coordinator",
+        "whois",
+        "iam",
+        "probe",
         "probe_ack"
     ]
     

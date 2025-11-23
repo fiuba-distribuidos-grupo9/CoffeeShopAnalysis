@@ -1,4 +1,3 @@
-# src/health_checkers/app/heartbeat.py
 from __future__ import annotations
 import threading
 import time
@@ -64,7 +63,6 @@ class HeartbeatLoop:
             now = time.monotonic()
 
             if suc is not None:
-                # Enviamos ping al sucesor.
                 msg = Message(
                     kind="heartbeat",
                     src_id=self.cfg.node_id,
@@ -73,7 +71,6 @@ class HeartbeatLoop:
                 )
                 self.send_to_successor(msg)
 
-            # Chequeo de timeout de ACK.
             with self._lock:
                 ever = self._ever_ack
                 last = self._last_ack_ts
@@ -81,9 +78,7 @@ class HeartbeatLoop:
             if suc is not None and ever:
                 silence = now - last
                 if silence > timeout_s:
-                    # Sucesor sospechado caído.
                     self.on_successor_suspected(suc.id)
-                    # Reseteamos para no disparar infinito.
                     with self._lock:
                         self._ever_ack = False
                         self._last_ack_ts = now

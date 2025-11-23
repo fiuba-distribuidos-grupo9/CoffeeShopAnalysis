@@ -1,4 +1,3 @@
-# src/health_checkers/app/ring_node.py
 from __future__ import annotations
 
 import socket
@@ -9,11 +8,10 @@ from .models import Config, Peer, Message
 from .election import Election
 from .dood import DockerReviver
 
-# Si tenés un HeartbeatLoop propio, lo importás; si no, podés quitar esto
 try:
     from .heartbeat import HeartbeatLoop
 except ImportError:
-    HeartbeatLoop = None  # type: ignore
+    HeartbeatLoop = None
 
 
 class RingNode:
@@ -29,10 +27,8 @@ class RingNode:
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((cfg.listen_host, cfg.listen_port))
-        # Timeout corto para poder revisar el estado de _running periódicamente.
         self.sock.settimeout(1.0)
 
-        # Peers excluyéndome a mí
         self._peers: List[Peer] = [p for p in cfg.peers if p.id != cfg.node_id]
         self._peers.sort(key=lambda p: p.id)
         self._successor_index = self._compute_successor_index()
@@ -42,10 +38,9 @@ class RingNode:
 
         self._running: bool = True
 
-        # Si tenés implementado un HeartbeatLoop, lo arrancamos.
         if HeartbeatLoop is not None:
             try:
-                self.heartbeat = HeartbeatLoop(  # type: ignore[attr-defined]
+                self.heartbeat = HeartbeatLoop(
                     cfg=cfg,
                     get_successor=self.successor,
                     send_to_successor=self._send_to_successor,
@@ -55,9 +50,7 @@ class RingNode:
             except Exception as e:
                 print(f"[ring] No se pudo iniciar HeartbeatLoop: {e}")
         else:
-            self.heartbeat = None  # type: ignore
-
-    # ---------- TOPOLOGÍA ----------
+            self.heartbeat = None
 
     def _compute_successor_index(self) -> int:
         if not self._peers:
@@ -87,12 +80,8 @@ class RingNode:
         self._peers.sort(key=lambda p: p.id)
         self._successor_index = self._compute_successor_index()
 
-    # ---------- LÍDER ----------
-
     def is_leader(self) -> bool:
         return self.election.leader_id == self.cfg.node_id
-
-    # ---------- ENVÍO ----------
 
     def _send_to(self, peer: Peer, msg: Message) -> None:
         data = msg.model_dump_json().encode("utf-8")
@@ -106,8 +95,6 @@ class RingNode:
         if suc is not None:
             self._send_to(suc, msg)
 
-    # ---------- HEARTBEAT CALLBACK (si lo usás) ----------
-
     def _on_successor_suspected(self, successor_id: int) -> None:
         suc = self.successor()
         if suc is None or suc.id != successor_id:
@@ -115,7 +102,6 @@ class RingNode:
         print(f"[hb] Sucesor {suc.id} ({suc.name}) sospechado caído. Lo removemos del anillo.")
         self._remove_peer(suc.id)
 
-        # Si el sucesor sospechado era el líder → nueva elección.
         if self.election.leader_id == suc.id:
             self.election.set_leader(None)
             try:
@@ -123,13 +109,10 @@ class RingNode:
             except Exception as e:
                 print(f"[hb] Error iniciando nueva elección: {e}")
 
-        # Si quedé solo, me auto-proclamo líder.
         if not self._peers:
             if self.election.leader_id != self.cfg.node_id:
                 self.election.set_leader(self.cfg.node_id)
                 print("[ring] Soy líder (único en el anillo).")
-
-    # ---------- CONTROL DE VIDA ----------
 
     def stop(self) -> None:
         """
@@ -145,15 +128,12 @@ class RingNode:
         except Exception:
             pass
 
-        # Paramos heartbeat si existe y tiene stop()
         hb = getattr(self, "heartbeat", None)
         if hb is not None and hasattr(hb, "stop"):
             try:
                 hb.stop()
             except Exception as e:
                 print(f"[ring] Error al detener HeartbeatLoop: {e}")
-
-    # ---------- LOOP PRINCIPAL ----------
 
     def run(self) -> None:
         print("[ring] Loop principal iniciado.")
@@ -164,7 +144,6 @@ class RingNode:
                 except socket.timeout:
                     continue
                 except OSError as e:
-                    # Si nos cerraron el socket como parte del shutdown, salimos sin drama.
                     if not self._running:
                         break
                     print(f"[ring] Error de socket: {e}")
@@ -195,9 +174,24 @@ class RingNode:
             print(f"[ring] Nuevo líder: {self.election.leader_id}")
 
         elif kind == "heartbeat":
-            # Esto depende de cómo tengas implementado HeartbeatLoop.
-            # Si usás pings/acks, podés manejarlo acá.
-            pass
+            is_ack = bool(msg.payload.get("ack"))
+            if is_ack:
+                hb = getattr(self, "heartbeat", None)
+                if hb is not None:
+                    try:
+                        hb.notify_ack()
+                    except Exception as e:
+                        print(f"[ring] Error en heartbeat.notify_ack(): {e}")
+            else:
+                ack = Message(
+                    kind="heartbeat",
+                    src_id=self.cfg.node_id,
+                    src_name=self.cfg.node_name,
+                    payload={"ack": True},
+                )
+                peer = self._peer_by_id(msg.src_id)
+                if peer is not None:
+                    self._send_to(peer, ack)
 
         elif kind == "probe":
             ack = Message(
@@ -206,5 +200,3 @@ class RingNode:
                 src_name=self.cfg.node_name,
             )
             self._send_to_successor(ack)
-
-        # Otros tipos se pueden ir agregando según necesidad.
