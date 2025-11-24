@@ -92,15 +92,25 @@ class RingNode:
 
     def _send_to_successor(self, msg: Message) -> None:
         suc = self.successor()
-        if suc is not None:
-            self._send_to(suc, msg)
+        if suc is None:
+            return
+        self._send_to(suc, msg)
 
     def _on_successor_suspected(self, successor_id: int) -> None:
         suc = self.successor()
         if suc is None or suc.id != successor_id:
             return
+        
         print(f"[hb] Sucesor {suc.id} ({suc.name}) sospechado caído. Lo removemos del anillo.")
         self._remove_peer(suc.id)
+
+        self._validate_and_clean_unreachable_peers()
+
+        if not self._peers:
+            if not self.is_leader():
+                print("[ring] Soy el unico nodo restante, me auto-proclamo lider")
+                self.election.set_leader(self.cfg.node_id)
+            return
 
         if self.election.leader_id == suc.id:
             self.election.set_leader(None)
@@ -109,10 +119,27 @@ class RingNode:
             except Exception as e:
                 print(f"[hb] Error iniciando nueva elección: {e}")
 
-        if not self._peers:
-            if self.election.leader_id != self.cfg.node_id:
-                self.election.set_leader(self.cfg.node_id)
-                print("[ring] Soy líder (único en el anillo).")
+    def _validate_and_clean_unreachable_peers(self) -> None:
+        unreachable = []
+
+        for peer in self._peers[:]:
+            probe = Message(
+                kind="probe",
+                src_id=self.cfg.node_id,
+                src_name=self.cfg.node_name,
+                payload={}
+                )
+            try:
+                data = probe.model_dump_json().encode("utf-8")
+                self.sock.sendto(data, (peer.host, peer.port))
+            except socket.gaierror as e:
+                print(f"[validate] Peer {peer.id} ({peer.name}) inalcanzable")
+                unreachable.append(peer.id)
+            except Exception as e:
+                print(f"[validate] Error probando {peer.id}: {e}")
+        
+        for peer_id in unreachable:
+            self._remove_peer(peer_id)
 
     def stop(self) -> None:
         """

@@ -1,6 +1,7 @@
 .PHONY: up down build logs1 logs2 logs 3 stop1 stop2 stop3
 
 up:
+	@docker build -t tp-health-checker:latest .
 	@./run_ring.sh
 
 down:
