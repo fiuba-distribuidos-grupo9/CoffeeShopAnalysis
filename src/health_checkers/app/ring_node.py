@@ -84,7 +84,7 @@ class RingNode:
         return self.election.leader_id == self.cfg.node_id
 
     def _send_to(self, peer: Peer, msg: Message) -> None:
-        data = msg.model_dump_json().encode("utf-8")
+        data = msg.to_json().encode("utf-8")
         try:
             self.sock.sendto(data, (peer.host, peer.port))
         except Exception as e:
@@ -130,7 +130,7 @@ class RingNode:
                 payload={}
                 )
             try:
-                data = probe.model_dump_json().encode("utf-8")
+                data = probe.to_json().encode("utf-8")
                 self.sock.sendto(data, (peer.host, peer.port))
             except socket.gaierror as e:
                 print(f"[validate] Peer {peer.id} ({peer.name}) inalcanzable")
@@ -177,7 +177,7 @@ class RingNode:
                     break
 
                 try:
-                    msg = Message.model_validate_json(data.decode("utf-8"))
+                    msg = Message.from_json(data.decode("utf-8"))
                 except Exception as e:
                     print(f"[ring] Mensaje inválido recibido: {e}")
                     continue

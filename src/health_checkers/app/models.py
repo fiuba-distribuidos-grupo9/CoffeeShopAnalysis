@@ -1,48 +1,111 @@
 from __future__ import annotations
-from typing import Dict, List, Tuple, Optional, Literal
-from pydantic import BaseModel, Field, ValidationError
+import json
+from typing import Dict, List, Optional, Literal, Any
+from dataclasses import dataclass, field
 
-class Peer(BaseModel):
+
+@dataclass
+class Peer:
     id: int
     host: str
     port: int
     name: str
 
-class Config(BaseModel):
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "host": self.host,
+            "port": self.port,
+            "name": self.name
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> Peer:
+        return cls(
+            id=int(data["id"]),
+            host=str(data["host"]),
+            port=int(data["port"]),
+            name=str(data["name"])
+        )
+
+
+@dataclass
+class Config:
     node_id: int
     node_name: str
     listen_host: str
     listen_port: int
     peers: List[Peer]
-
+    
     heartbeat_interval_ms: int = 800
     heartbeat_timeout_ms: int = 2500
     suspect_grace_ms: int = 1200
-
+    
     election_backoff_ms_min: int = 300
     election_backoff_ms_max: int = 900
-
+    
     leader_sleep_min_ms: int = 1500
     leader_sleep_max_ms: int = 5000
-
-    mode: Literal["auto","manual"] = "auto"
-    log_level: Literal["DEBUG","INFO","WARNING","ERROR"] = "INFO"
-
-    revive_targets: Dict[str, str] = Field(default_factory=dict)
+    
+    mode: str = "auto"
+    log_level: str = "INFO"
+    
+    revive_targets: Dict[str, str] = field(default_factory=dict)
     docker_host: Optional[str] = "unix:///var/run/docker.sock"
 
-class Message(BaseModel):
-    kind: Literal[
-        "heartbeat",
-        "election",
-        "election_ok",
-        "coordinator",
-        "whois",
-        "iam",
-        "probe",
-        "probe_ack"
-    ]
-    
+    def __post_init__(self):
+        # Validación básica
+        if self.mode not in ("auto", "manual"):
+            raise ValueError(f"mode debe ser 'auto' o 'manual', no '{self.mode}'")
+        if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR"):
+            raise ValueError(f"log_level inválido: '{self.log_level}'")
+
+
+@dataclass
+class Message:
+    kind: str
     src_id: int
     src_name: str
-    payload: Dict = Field(default_factory=dict)
+    payload: Dict[str, Any] = field(default_factory=dict)
+
+    VALID_KINDS = {
+        "heartbeat", "election", "election_ok", "coordinator",
+        "whois", "iam", "probe", "probe_ack"
+    }
+
+    def __post_init__(self):
+        if self.kind not in self.VALID_KINDS:
+            raise ValueError(f"kind inválido: '{self.kind}'")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "src_id": self.src_id,
+            "src_name": self.src_name,
+            "payload": self.payload
+        }
+
+    def to_json(self) -> str:
+        """Serializa el mensaje a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> Message:
+        """Deserializa desde JSON string."""
+        data = json.loads(json_str)
+        return cls(
+            kind=str(data["kind"]),
+            src_id=int(data["src_id"]),
+            src_name=str(data["src_name"]),
+            payload=dict(data.get("payload", {}))
+        )
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> Message:
+        """Crea un Message desde un diccionario."""
+        return cls(
+            kind=str(data["kind"]),
+            src_id=int(data["src_id"]),
+            src_name=str(data["src_name"]),
+            payload=dict(data.get("payload", {}))
+        )

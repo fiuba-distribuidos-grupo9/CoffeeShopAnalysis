@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os, random
 from typing import Dict, List
-from pydantic import ValidationError
 from .models import Config, Peer
 
 def parse_peers(peers_env: str) -> List[Peer]:
