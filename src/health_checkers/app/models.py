@@ -30,6 +30,23 @@ class Peer:
 
 
 @dataclass
+class ControllerTarget:
+    """Representa un controlador a monitorear (puede ser un HC u otro servicio)."""
+    name: str
+    host: str
+    port: int
+    container_name: str  # nombre del contenedor Docker para revivir
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "host": self.host,
+            "port": self.port,
+            "container_name": self.container_name
+        }
+
+
+@dataclass
 class Config:
     node_id: int
     node_name: str
@@ -37,9 +54,18 @@ class Config:
     listen_port: int
     peers: List[Peer]
     
+    health_listen_port: int = 9201
+    
+
+    controller_targets: List[ControllerTarget] = field(default_factory=list)
+    
     heartbeat_interval_ms: int = 800
-    heartbeat_timeout_ms: int = 2500
+    heartbeat_timeout_ms: int = 1000  # 1 segundo
+    heartbeat_max_retries: int = 5
     suspect_grace_ms: int = 1200
+    
+    leader_check_interval_ms: int = 10000
+    leader_check_timeout_ms: int = 1000
     
     election_backoff_ms_min: int = 300
     election_backoff_ms_max: int = 900
@@ -50,7 +76,6 @@ class Config:
     mode: str = "auto"
     log_level: str = "INFO"
     
-    revive_targets: Dict[str, str] = field(default_factory=dict)
     docker_host: Optional[str] = "unix:///var/run/docker.sock"
 
     def __post_init__(self):
@@ -69,8 +94,10 @@ class Message:
     payload: Dict[str, Any] = field(default_factory=dict)
 
     VALID_KINDS = {
-        "heartbeat", "election", "election_ok", "coordinator",
-        "whois", "iam", "probe", "probe_ack"
+        "heartbeat", "heartbeat_ack",
+        "election", "election_ok", "coordinator",
+        "whois", "iam", "probe", "probe_ack",
+        "is_leader_alive", "leader_alive_ack"
     }
 
     def __post_init__(self):

@@ -4,24 +4,11 @@ import socket
 import time
 from typing import Optional, List
 
-from .models import Config, Peer, Message
+from .models import Config, Peer, Message, ControllerTarget
 from .election import Election
-from .dood import DockerReviver
-
-try:
-    from .heartbeat import HeartbeatLoop
-except ImportError:
-    HeartbeatLoop = None
 
 
 class RingNode:
-    """
-    Nodo del anillo:
-      - Mantiene la topología (peers, sucesor, predecesor).
-      - Maneja mensajes vía UDP.
-      - Integra elección de líder y (opcionalmente) heartbeat.
-    """
-
     def __init__(self, cfg: Config):
         self.cfg = cfg
 
@@ -31,32 +18,18 @@ class RingNode:
 
         self._peers: List[Peer] = [p for p in cfg.peers if p.id != cfg.node_id]
         self._peers.sort(key=lambda p: p.id)
-        self._successor_index = self._compute_successor_index()
+        self._successor_index = self._get_succesor_index()
 
-        self.election = Election(cfg, self._send_to_successor)
-        self.reviver = DockerReviver(cfg.docker_host)
-
+        self.election = Election(cfg, self._send_to_successor_with_retry)
         self._running: bool = True
 
-        if HeartbeatLoop is not None:
-            try:
-                self.heartbeat = HeartbeatLoop(
-                    cfg=cfg,
-                    get_successor=self.successor,
-                    send_to_successor=self._send_to_successor,
-                    on_successor_suspected=self._on_successor_suspected,
-                )
-                self.heartbeat.start()
-            except Exception as e:
-                print(f"[ring] No se pudo iniciar HeartbeatLoop: {e}")
-        else:
-            self.heartbeat = None
-
-    def _compute_successor_index(self) -> int:
+    def _get_succesor_index(self) -> int:
         if not self._peers:
             return 0
-        higher = [i for i, p in enumerate(self._peers) if p.id > self.cfg.node_id]
-        return higher[0] if higher else 0
+        for i, p in enumerate(self._peers):
+            if p.id > self.cfg.node_id:
+                return i
+        return 0
 
     def successor(self) -> Optional[Peer]:
         if not self._peers:
@@ -76,94 +49,115 @@ class RingNode:
         return None
 
     def _remove_peer(self, peer_id: int) -> None:
+        print(f"[ring] Removiendo peer {peer_id} de la topología")
         self._peers = [p for p in self._peers if p.id != peer_id]
         self._peers.sort(key=lambda p: p.id)
-        self._successor_index = self._compute_successor_index()
+        if self._peers:
+            self._successor_index = self._get_succesor_index()
+        else:
+            self._successor_index = 0
+            print("[ring] No quedan peers en el anillo")
 
     def is_leader(self) -> bool:
         return self.election.leader_id == self.cfg.node_id
+
+    def get_leader_info(self) -> Optional[tuple[str, int]]:
+        """Retorna (host, health_port) del líder actual."""
+        leader_id = self.election.leader_id
+        if leader_id is None:
+            return None
+
+        if leader_id == self.cfg.node_id:
+            return (self.cfg.listen_host, self.cfg.health_listen_port)
+
+        for target in self.cfg.controller_targets:
+            if target.name == f"hc-{leader_id}":
+                return (target.host, target.port)
+
+        return None
+
+    def notify_leadership_to(self, target_host: str, target_election_port: int) -> None:
+        if not self.is_leader():
+            return
+        
+        leader_id = self.election.leader_id
+        if leader_id is None:
+            return
+        
+        msg = Message(
+            kind="coordinator",
+            src_id=self.cfg.node_id,
+            src_name=self.cfg.node_name,
+            payload={
+                "leader_id": leader_id,
+                "initiator_id": leader_id
+            }
+        )
+        
+        election_port = self._get_election_port_for_host(target_host)
+        
+        try:
+            print(f"[ring] Notificando liderazgo a {target_host}:{election_port}")
+            self.sock.sendto(msg.to_json().encode("utf-8"), (target_host, election_port))
+        except Exception as e:
+            print(f"[ring] Error notificando a {target_host}:{election_port}: {e}")
+
+    def _get_election_port_for_host(self, target_host: str) -> int:
+        for peer in self._peers:
+            if peer.host == target_host:
+                return peer.port
+        
+        return self.cfg.listen_port
 
     def _send_to(self, peer: Peer, msg: Message) -> None:
         data = msg.to_json().encode("utf-8")
         try:
             self.sock.sendto(data, (peer.host, peer.port))
+        except OSError as e:
+            print(f"[send] Error de red enviando a {peer.name}: {e}")
+            raise
         except Exception as e:
-            print(f"[send] Error enviando a {peer.name}@{peer.host}:{peer.port}: {e}")
+            print(f"[send] Error enviando a {peer.name}: {e}")
+            raise
 
-    def _send_to_successor(self, msg: Message) -> None:
-        suc = self.successor()
-        if suc is None:
-            return
-        self._send_to(suc, msg)
-
-    def _on_successor_suspected(self, successor_id: int) -> None:
-        suc = self.successor()
-        if suc is None or suc.id != successor_id:
-            return
-        
-        print(f"[hb] Sucesor {suc.id} ({suc.name}) sospechado caído. Lo removemos del anillo.")
-        self._remove_peer(suc.id)
-
-        self._validate_and_clean_unreachable_peers()
-
+    def _send_to_successor_with_retry(self, msg: Message) -> bool:
         if not self._peers:
-            if not self.is_leader():
-                print("[ring] Soy el unico nodo restante, me auto-proclamo lider")
-                self.election.set_leader(self.cfg.node_id)
-            return
-
-        if self.election.leader_id == suc.id:
-            self.election.set_leader(None)
-            try:
-                self.election.start_election()
-            except Exception as e:
-                print(f"[hb] Error iniciando nueva elección: {e}")
-
-    def _validate_and_clean_unreachable_peers(self) -> None:
-        unreachable = []
-
-        for peer in self._peers[:]:
-            probe = Message(
-                kind="probe",
-                src_id=self.cfg.node_id,
-                src_name=self.cfg.node_name,
-                payload={}
-                )
-            try:
-                data = probe.to_json().encode("utf-8")
-                self.sock.sendto(data, (peer.host, peer.port))
-            except socket.gaierror as e:
-                print(f"[validate] Peer {peer.id} ({peer.name}) inalcanzable")
-                unreachable.append(peer.id)
-            except Exception as e:
-                print(f"[validate] Error probando {peer.id}: {e}")
+            print("[ring] No hay peers disponibles para enviar")
+            return False
         
-        for peer_id in unreachable:
-            self._remove_peer(peer_id)
+        attempts = 0
+        max_attempts = len(self._peers)
+        
+        while attempts < max_attempts:
+            suc = self.successor()
+            if suc is None:
+                print("[ring] No hay sucesor disponible")
+                return False
+            
+            try:
+                self._send_to(suc, msg)
+                return True
+            except Exception as e:
+                print(f"[ring] Error enviando a {suc.name}: {e}")
+                self._remove_peer(suc.id)
+                attempts += 1
+        
+        print("[ring] No se pudo enviar a ningún peer disponible")
+        return False
 
     def stop(self) -> None:
-        """
-        Detiene el loop principal y cierra recursos.
-        Se llama desde el manejador de señales y desde el finally de main().
-        """
+        """Detiene el loop principal y cierra recursos."""
         if not self._running:
             return
-        print("[ring] stop() llamado. Cerrando socket y deteniendo heartbeat si aplica...")
+        print("[ring] stop() llamado. Cerrando socket de elección...")
         self._running = False
         try:
             self.sock.close()
         except Exception:
             pass
 
-        hb = getattr(self, "heartbeat", None)
-        if hb is not None and hasattr(hb, "stop"):
-            try:
-                hb.stop()
-            except Exception as e:
-                print(f"[ring] Error al detener HeartbeatLoop: {e}")
-
     def run(self) -> None:
-        print("[ring] Loop principal iniciado.")
+        print("[ring] Loop principal iniciado (solo elección).")
         try:
             while self._running:
                 try:
@@ -198,32 +192,4 @@ class RingNode:
 
         elif kind == "coordinator":
             self.election.handle_coordinator(msg)
-            print(f"[ring] Nuevo líder: {self.election.leader_id}")
-
-        elif kind == "heartbeat":
-            is_ack = bool(msg.payload.get("ack"))
-            if is_ack:
-                hb = getattr(self, "heartbeat", None)
-                if hb is not None:
-                    try:
-                        hb.notify_ack()
-                    except Exception as e:
-                        print(f"[ring] Error en heartbeat.notify_ack(): {e}")
-            else:
-                ack = Message(
-                    kind="heartbeat",
-                    src_id=self.cfg.node_id,
-                    src_name=self.cfg.node_name,
-                    payload={"ack": True},
-                )
-                peer = self._peer_by_id(msg.src_id)
-                if peer is not None:
-                    self._send_to(peer, ack)
-
-        elif kind == "probe":
-            ack = Message(
-                kind="probe_ack",
-                src_id=self.cfg.node_id,
-                src_name=self.cfg.node_name,
-            )
-            self._send_to_successor(ack)
+            print(f"[ring] Líder confirmado: {self.election.leader_id}")
