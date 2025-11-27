@@ -1,7 +1,7 @@
 .PHONY: up down build logs1 logs2 logs3 logs4 logs5 stop1 stop2 stop3 stop4 stop5
 
 up:
-	@docker build -t tp-health-checker:latest .
+	@docker build -t tp-health-checker:latest -f Dockerfile ..
 	@./run_ring.sh
 
 down:
@@ -9,10 +9,12 @@ down:
 	@docker rm -f hc1_container hc2_container hc3_container hc3_container hc4_container hc5_container 2>/dev/null || true
 
 build:
-	@docker build -t tp-health-checker -f Dockerfile .
-
+	@docker build -t tp-health-checker -f Dockerfile ..
 logs:
-	@docker logs -f $(docker ps -q --filter ancestor=tp-health-checker)
+	@for c in hc1_container hc2_container hc3_container hc4_container hc5_container; do \
+		docker logs -f $$c & \
+	done; \
+	wait
 
 logs1:
 	@docker logs -f hc1_container

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import logging
 import socket
-import time
 from typing import Optional, List
 
 from .models import Config, Peer, Message, ControllerTarget
@@ -49,14 +49,14 @@ class RingNode:
         return None
 
     def _remove_peer(self, peer_id: int) -> None:
-        print(f"[ring] Removiendo peer {peer_id} de la topología")
+        logging.info(f"Removiendo peer {peer_id} de la topología")
         self._peers = [p for p in self._peers if p.id != peer_id]
         self._peers.sort(key=lambda p: p.id)
         if self._peers:
             self._successor_index = self._get_succesor_index()
         else:
             self._successor_index = 0
-            print("[ring] No quedan peers en el anillo")
+            logging.info(f"No quedan peers en el anillo")
 
     def is_leader(self) -> bool:
         return self.election.leader_id == self.cfg.node_id
@@ -97,10 +97,10 @@ class RingNode:
         election_port = self._get_election_port_for_host(target_host)
         
         try:
-            print(f"[ring] Notificando liderazgo a {target_host}:{election_port}")
+            logging.info(f"Notificando liderazgo a {target_host}:{election_port}")
             self.sock.sendto(msg.to_json().encode("utf-8"), (target_host, election_port))
         except Exception as e:
-            print(f"[ring] Error notificando a {target_host}:{election_port}: {e}")
+            logging.error(f"Error notificando a {target_host}:{election_port}: {e}")
 
     def _get_election_port_for_host(self, target_host: str) -> int:
         for peer in self._peers:
@@ -114,15 +114,15 @@ class RingNode:
         try:
             self.sock.sendto(data, (peer.host, peer.port))
         except OSError as e:
-            print(f"[send] Error de red enviando a {peer.name}: {e}")
+            logging.error(f"Error de red enviando a {peer.name}: {e}")
             raise
         except Exception as e:
-            print(f"[send] Error enviando a {peer.name}: {e}")
+            logging.error(f"Error enviando a {peer.name}: {e}")
             raise
 
     def _send_to_successor_with_retry(self, msg: Message) -> bool:
         if not self._peers:
-            print("[ring] No hay peers disponibles para enviar")
+            logging.info(f"No hay peers disponibles para enviar")
             return False
         
         attempts = 0
@@ -131,25 +131,23 @@ class RingNode:
         while attempts < max_attempts:
             suc = self.successor()
             if suc is None:
-                print("[ring] No hay sucesor disponible")
+                logging.info(f"No hay sucesor disponible")
                 return False
             
             try:
                 self._send_to(suc, msg)
                 return True
             except Exception as e:
-                print(f"[ring] Error enviando a {suc.name}: {e}")
+                logging.error(f"Error enviando a {suc.name}: {e}")
                 self._remove_peer(suc.id)
                 attempts += 1
         
-        print("[ring] No se pudo enviar a ningún peer disponible")
+        logging.info(f"No se pudo enviar a ningún peer disponible")
         return False
 
     def stop(self) -> None:
-        """Detiene el loop principal y cierra recursos."""
         if not self._running:
             return
-        print("[ring] stop() llamado. Cerrando socket de elección...")
         self._running = False
         try:
             self.sock.close()
@@ -157,7 +155,7 @@ class RingNode:
             pass
 
     def run(self) -> None:
-        print("[ring] Loop principal iniciado (solo elección).")
+        logging.info(f"Loop principal iniciado (solo elección).")
         try:
             while self._running:
                 try:
@@ -167,13 +165,13 @@ class RingNode:
                 except OSError as e:
                     if not self._running:
                         break
-                    print(f"[ring] Error de socket: {e}")
+                    logging.error(f"Error de socket: {e}")
                     break
 
                 try:
                     msg = Message.from_json(data.decode("utf-8"))
                 except Exception as e:
-                    print(f"[ring] Mensaje inválido recibido: {e}")
+                    logging.error(f"Mensaje inválido recibido: {e}")
                     continue
 
                 self._handle_message(msg)
@@ -182,7 +180,7 @@ class RingNode:
                 self.sock.close()
             except Exception:
                 pass
-            print("[ring] Loop principal terminado.")
+            logging.info("Loop principal terminado.")
 
     def _handle_message(self, msg: Message) -> None:
         kind = msg.kind
@@ -192,4 +190,4 @@ class RingNode:
 
         elif kind == "coordinator":
             self.election.handle_coordinator(msg)
-            print(f"[ring] Líder confirmado: {self.election.leader_id}")
+            logging.info(f"Líder confirmado: {self.election.leader_id}")

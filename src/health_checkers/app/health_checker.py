@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 from typing import Optional, Callable
+import logging
 
 from .models import Config, Message, ControllerTarget
 from .dood import DockerReviver
@@ -66,24 +67,26 @@ class HealthChecker:
         )
         self._follower_thread.start()
 
-        print(f"[health] HealthChecker iniciado en puerto {self.cfg.health_listen_port}")
+        logging.info(f"HealthChecker iniciado en puerto {self.cfg.health_listen_port}")
+
+    def _sock_valid(self) -> bool:
+        try:
+            if self.sock is None:
+                return False
+            if getattr(self.sock, "_closed", False):
+                return False
+            if self.sock.fileno() == -1:
+                return False
+            return True
+        except Exception:
+            return False
 
     def stop(self) -> None:
         if not self._running.is_set():
             return
 
-        print("[health] Deteniendo HealthChecker...")
+        logging.info("Deteniendo HealthChecker...")
         self._running.clear()
-
-        try:
-            self.sock.shutdown(socket.SHUT_RDWR)
-        except Exception:
-            pass
-
-        try:
-            self.sock.close()
-        except Exception:
-            pass
 
         threads = [
             (self._recv_thread, "Recv"),
@@ -93,12 +96,31 @@ class HealthChecker:
 
         for thread, thread_name in threads:
             if thread and thread.is_alive():
-                thread.join(timeout=2.0)
+                try:
+                    thread.join(timeout=2.0)
+                except Exception:
+                    pass
+
+        try:
+            if self._sock_valid():
+                try:
+                    self.sock.shutdown(socket.SHUT_RDWR)
+                except Exception:
+                    pass
+                try:
+                    self.sock.close()
+                except Exception:
+                    pass
+        except Exception:
+            try:
+                self.sock.close()
+            except Exception:
+                pass
         
         try:
             self.reviver.close()
         except Exception as e:
-            print(f"[health] Error cerrando reviver: {e}")
+            logging.error(f"Error cerrando reviver: {e}")
 
         self._recv_thread = None
         self._leader_thread = None
@@ -107,6 +129,9 @@ class HealthChecker:
     def _recv_loop(self) -> None:
         while self._running.is_set():
             try:
+                if not self._sock_valid():
+                    return
+
                 data, addr = self.sock.recvfrom(64 * 1024)
             except socket.timeout:
                 continue
@@ -119,7 +144,7 @@ class HealthChecker:
                 msg = Message.from_json(data.decode("utf-8"))
                 self._handle_health_message(msg, addr)
             except Exception as e:
-                print(f"[health] Error procesando mensaje: {e}")
+                logging.error(f"Error procesando mensaje: {e}")
 
     def _handle_health_message(self, msg: Message, addr: tuple) -> None:
         kind = msg.kind
@@ -132,10 +157,16 @@ class HealthChecker:
                 payload={}
             )
             try:
+                if not self._sock_valid():
+                    return
+                
                 self.sock.sendto(ack.to_json().encode("utf-8"), addr)
-                print(f"[health] Respondido heartbeat_ack a {addr}")
+                logging.info(f"Respondido heartbeat_ack a {addr}")
+            except OSError as e:
+                if getattr(e, "errno", None) == 9:
+                    return
             except Exception as e:
-                print(f"[health] Error enviando ACK: {e}")
+                logging.error(f"Error enviando ACK: {e}")
 
         elif kind == "heartbeat_ack":
             pass
@@ -150,9 +181,9 @@ class HealthChecker:
                 )
                 try:
                     self.sock.sendto(ack.to_json().encode("utf-8"), addr)
-                    print(f"[health] Respondido leader_alive_ack a {addr}")
+                    logging.info(f"Respondido leader_alive_ack a {addr}")
                 except Exception as e:
-                    print(f"[health] Error enviando leader_alive_ack: {e}")
+                    logging.error(f"Error enviando leader_alive_ack: {e}")
 
         elif kind == "leader_alive_ack":
             pass
@@ -165,22 +196,20 @@ class HealthChecker:
                 time.sleep(1.0)
                 continue
 
-            print(f"[health] Líder {self.cfg.node_name} enviando heartbeats...")
+            logging.info(f"Líder {self.cfg.node_name} enviando heartbeats...")
 
             for target in self.cfg.controller_targets:
                 if not self._running.is_set():
                     break
 
-                was_dead = False
                 success = self._send_heartbeat_with_retry(target)
 
                 if not success:
-                    print(f"[health] Controlador {target.name} no responde. Intentando revivir...")
-                    was_dead = True
+                    logging.info(f"Controlador {target.name} no responde. Intentando revivir...")
                     revived = self._revive_controller(target)
                     
                     if revived:
-                        print(f"[health] Notificando a {target.name} sobre liderazgo...")
+                        logging.info(f"Notificando a {target.name} sobre liderazgo...")
                         time.sleep(2.0)
                         self.notify_revived_node(target.host, target.port)
 
@@ -200,13 +229,20 @@ class HealthChecker:
             if not self._running.is_set():
                 return False
 
+            if not self._sock_valid():
+                return False
+
             try:
                 self.sock.sendto(
                     msg.to_json().encode("utf-8"),
                     (target.host, target.port)
                 )
-
-                self.sock.settimeout(timeout_s)
+                try:
+                    self.sock.settimeout(timeout_s)
+                except OSError as e:
+                    if getattr(e, "errno", None) == 9:
+                        return False
+                    
                 start = time.monotonic()
 
                 while time.monotonic() - start < timeout_s:
@@ -215,33 +251,45 @@ class HealthChecker:
                         ack_msg = Message.from_json(data.decode("utf-8"))
 
                         if ack_msg.kind == "heartbeat_ack":
-                            print(f"[health] {target.name} respondió (intento {attempt})")
-                            self.sock.settimeout(0.5)
+                            logging.info(f"{target.name} respondió (intento {attempt})")
+                            
+                            try: 
+                                self.sock.settimeout(0.5)
+                            except Exception:
+                                pass
+
                             return True
                     except socket.timeout:
                         break
                     except Exception:
                         continue
 
-                print(f"[health] {target.name} no respondió (intento {attempt}/{max_retries})")
+                logging.info(f"{target.name} no respondió (intento {attempt}/{max_retries})")
 
+            except OSError as e:
+                if getattr(e, "errno", None) == 9:
+                    return False
+                
             except Exception as e:
-                print(f"[health] Error enviando a {target.name}: {e}")
+                logging.error(f"Error enviando a {target.name}: {e}")
 
             if attempt < max_retries:
                 time.sleep(1.0)
-
-        self.sock.settimeout(0.5)
+        try:
+            if self._sock_valid():
+                self.sock.settimeout(0.5)
+        except Exception:
+            pass
         return False
 
     def _revive_controller(self, target: ControllerTarget) -> bool:
-        print(f"[health] Reviviendo contenedor: {target.container_name}")
+        logging.info(f"Reviviendo contenedor: {target.container_name}")
         success = self.reviver.revive_container(target.container_name)
 
         if success:
-            print(f"[health] Contenedor {target.container_name} revivido")
+            logging.info(f"Contenedor {target.container_name} revivido")
         else:
-            print(f"[health] Falló al revivir {target.container_name}")
+            logging.info(f"Falló al revivir {target.container_name}")
         
         return success
 
@@ -264,7 +312,7 @@ class HealthChecker:
         leader_info = self.get_leader_info()
 
         if leader_info is None:
-            print("[health] No hay líder conocido para verificar")
+            logging.info(f"No hay líder conocido para verificar")
             with self._leader_check_lock:
                 self._leader_check_failures = 0
             return
@@ -280,9 +328,23 @@ class HealthChecker:
             payload={}
         )
 
+        if not self._sock_valid():
+            return
+
         try:
-            self.sock.sendto(msg.to_json().encode("utf-8"), (host, port))
-            self.sock.settimeout(timeout_s)
+            try:
+                self.sock.sendto(msg.to_json().encode("utf-8"), (host, port))
+            except OSError as e:
+                if getattr(e, "errno", None) == 9:
+                    return
+                raise
+            try:
+                self.sock.settimeout(timeout_s)
+            except OSError as e:
+                if getattr(e, "errno", None) == 9:
+                    return
+                raise
+                
 
             start = time.monotonic()
             received_ack = False
@@ -293,7 +355,7 @@ class HealthChecker:
                     ack_msg = Message.from_json(data.decode("utf-8"))
 
                     if ack_msg.kind == "leader_alive_ack":
-                        print(f"[health] Líder está vivo")
+                        logging.info(f"Líder está vivo")
                         self.sock.settimeout(0.5)
                         received_ack = True
                         with self._leader_check_lock:
@@ -309,10 +371,10 @@ class HealthChecker:
                     self._leader_check_failures += 1
                     failures = self._leader_check_failures
                 
-                print(f"[health] Líder no responde (fallo {failures}/{self._max_leader_check_failures})")
+                logging.info(f"Líder no responde (fallo {failures}/{self._max_leader_check_failures})")
                 
                 if failures >= self._max_leader_check_failures:
-                    print("[health] Máximo de fallos alcanzado, iniciando elección...")
+                    logging.info("Máximo de fallos alcanzado, iniciando elección...")
                     self.sock.settimeout(0.5)
                     with self._leader_check_lock:
                         self._leader_check_failures = 0
@@ -325,10 +387,10 @@ class HealthChecker:
                 self._leader_check_failures += 1
                 failures = self._leader_check_failures
             
-            print(f"[health] Error de red contactando líder: {e} (fallo {failures}/{self._max_leader_check_failures})")
+            logging.info(f"Error de red contactando líder: {e} (fallo {failures}/{self._max_leader_check_failures})")
             
             if failures >= self._max_leader_check_failures:
-                print("[health] Líder caido, iniciando elección...")
+                logging.info("Líder caido, iniciando elección...")
                 self.sock.settimeout(0.5)
                 with self._leader_check_lock:
                     self._leader_check_failures = 0
@@ -337,5 +399,5 @@ class HealthChecker:
                 self.sock.settimeout(0.5)
                 
         except Exception as e:
-            print(f"[health] Error inesperado verificando líder: {e}")
+            logging.error(f"Error inesperado verificando líder: {e}")
             self.sock.settimeout(0.5)

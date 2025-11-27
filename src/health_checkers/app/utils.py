@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os, random
 from typing import Dict, List
 from .models import Config, Peer, ControllerTarget
@@ -41,7 +42,7 @@ def parse_controller_targets(targets_env: str) -> List[ControllerTarget]:
         parts = rest.split(":", 2)
         
         if len(parts) != 3:
-            print(f"[config] Formato inválido para target: {item}")
+            logging.info(f"Formato inválido para target: {item}")
             continue
             
         host, port, container_name = parts
