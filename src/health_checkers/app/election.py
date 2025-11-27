@@ -26,17 +26,17 @@ class Election:
             self._leader_id = leader_id
             if leader_id is None:
                 self._active_elections.clear()
+            logging.info(f"action: set_leader | result: success | new_leader: {leader_id}")
 
     def start_election(self) -> None:
         """Inicia una elección si no hay otra en curso."""
         with self._lock:
             if self._running:
-                logging.info(f"Ya hay una elección en curso en nodo {self.cfg.node_id}")
                 return
             self._running = True
             self._active_elections.clear()
         
-        logging.info(f"Nodo {self.cfg.node_id} iniciando elección")
+        logging.info(f"action: start_election | status: in progress | initiator_HC: {self.cfg.node_id}")
         
         try:
             msg = Message(
@@ -53,9 +53,9 @@ class Election:
             success = self.send_to_successor(msg)
             
             if success:
-                logging.info(f"Nodo {self.cfg.node_id} envió election a sucesor")
+                logging.info(f"action: election_message_sent_to_successor | result: success | current_HC: {self.cfg.node_id}")
             else:
-                logging.info(f"Nodo {self.cfg.node_id} sin peers, auto-proclamándose líder")
+                logging.info(f"action: start_election | result: success | new_leader: {self.cfg.node_id} (No HC left)")
                 with self._lock:
                     self._leader_id = self.cfg.node_id
         finally:
@@ -72,7 +72,7 @@ class Election:
         node_id = self.cfg.node_id
         
         if initiator_id == node_id and candidate_id == node_id:
-            logging.info(f"El mensaje dio la vuelta completa, {node_id} es nuevo lider")
+            logging.info(f"action: election | result: success | new_leader: {node_id}")
             with self._lock:
                 self._leader_id = node_id
                 self._active_elections.clear()
@@ -93,17 +93,15 @@ class Election:
             if initiator_id in self._active_elections:
                 prev_candidate = self._active_elections[initiator_id]
                 if candidate_id <= prev_candidate:
-                    logging.info(f"Nodo: {node_id} ya procesó candidate_id={prev_candidate} de initiator={initiator_id}, ignorando {candidate_id}")
                     return
             self._active_elections[initiator_id] = candidate_id
 
-        logging.info(f"Nodo {node_id} recibió election: candidate={candidate_id}, initiator={initiator_id}")
+        logging.info(f"action: election_message_received | result: success | candidate: {candidate_id}")
 
         if candidate_id > node_id:
-            logging.info(f"ID recibido mayor: {candidate_id}. Reenvio el mensaje")
             self.send_to_successor(msg)
         else:
-            logging.info(f"ID recibido menor: {candidate_id}. Envio mensaje con ID: {node_id}")
+            logging.info(f"action: better_candidate | result: success | new_candidate_ID: {node_id}")
             new_msg = Message(
                 kind="election",
                 src_id=node_id,
@@ -125,17 +123,17 @@ class Election:
         
         node_id = self.cfg.node_id
         
-        logging.info(f"Nodo {node_id} recibió mensaje coordinator: leader={leader_id}, initiator={initiator_id}")
+        logging.info(f"action: coordinator_message_received | result: success | leader_id_received: {leader_id}")
         
         if leader_id == node_id:
-            logging.info(f"Soy el líder {leader_id}, anuncio completado")
+            logging.info(f"action: election_completed | result: success | new_leader: {leader_id}")
             with self._lock:
                 self._leader_id = leader_id
                 self._active_elections.clear()
             return
         
         if initiator_id == node_id:
-            logging.info(f"Anuncio de coordinator completó el ciclo en nodo {node_id}")
+            logging.info(f"action: coordinator_message_finished_ring | result: success | new_leader: {leader_id}")
             with self._lock:
                 self._leader_id = leader_id
                 self._active_elections.clear()
@@ -146,7 +144,6 @@ class Election:
             self._active_elections.clear()
         
         if is_notifying_revived:
-            logging.info(f"Nodo {node_id} revivido acepta el lider")
+            logging.info(f"action: notifying_leader_to_revived_HC | result: success")
             return
-        logging.info(f"Nodo {node_id} acepta líder {leader_id} y reenvía")
         self.send_to_successor(msg)

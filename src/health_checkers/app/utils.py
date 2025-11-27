@@ -42,7 +42,6 @@ def parse_controller_targets(targets_env: str) -> List[ControllerTarget]:
         parts = rest.split(":", 2)
         
         if len(parts) != 3:
-            logging.info(f"Formato inválido para target: {item}")
             continue
             
         host, port, container_name = parts

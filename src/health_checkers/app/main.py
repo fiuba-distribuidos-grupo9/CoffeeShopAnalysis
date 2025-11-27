@@ -31,7 +31,7 @@ def _handle_signal(signum, frame):
     global _current_node, _current_health
 
     name = _signal_name(signum)
-    logging.info(f"Recibida señal {name} ({signum}). Iniciando apagado graceful...")
+    logging.info(f"action: sigal_received | signal: {signum} ({name}) | result: success")
     _shutdown_event.set()
 
     if _current_health is not None:
@@ -44,7 +44,7 @@ def _handle_signal(signum, frame):
         try:
             _current_node.stop()
         except Exception as e:
-            logging.error(f"Error al detener RingNode: {e}")
+            logging.error(f"action: signal_received | result: fail | error: {e}")
 
 
 def _is_first_start() -> bool:
@@ -55,7 +55,7 @@ def _mark_started() -> None:
     try:
         STATE_FILE.touch()
     except Exception as e:
-        logging.error(f"Error creando archivo de estado: {e}")
+        pass
 
 
 def _smart_election_start(ring_node: RingNode, cfg) -> None:
@@ -63,7 +63,7 @@ def _smart_election_start(ring_node: RingNode, cfg) -> None:
     
     if is_first_start:
         jitter = jitter_ms(500, 2000)
-        logging.info(f"Iniciando elección")
+        logging.info(f"action: starting_first_election | status: in progress")
         _mark_started()
         time.sleep(jitter)
         
@@ -71,42 +71,33 @@ def _smart_election_start(ring_node: RingNode, cfg) -> None:
             try:
                 ring_node.election.start_election()
             except Exception as e:
-                logging.error(f"Error iniciando elección: {e}")
+                logging.error(f"action: first_election | result: fail | error: {e}")
     else:
         discovery_timeout = 6.0
         check_interval = 0.5
         elapsed = 0.0
         
-        logging.info(f"Nodo revivido.")
+        logging.info(f"action: controller_revived | result: success")
         
         while elapsed < discovery_timeout and not _shutdown_event.is_set():
             if ring_node.election.leader_id is not None:
-                logging.info(f"Líder descubierto: {ring_node.election.leader_id}")
+                logging.info(f"action: leader_discovered | result: success | new_leader: {ring_node.election.leader_id}")
                 return
             time.sleep(check_interval)
             elapsed += check_interval
         
         if ring_node.election.leader_id is None:
-            logging.info(f"No se detectó líder, iniciando elección...")
+            logging.info(f"action: leader_discovered | result: fail | new_action: start_election")
             try:
                 ring_node.election.start_election()
             except Exception as e:
-                logging.error(f"Error iniciando elección: {e}")
+                logging.error(f"action: start_election | result: fail | error: {e}")
 
 
 def _run() -> None:
     global _current_node, _current_health
 
     cfg = load_config_from_env()
-    logging.info(f"{cfg.node_name} (id={cfg.node_id})")
-    logging.info(f"  - Elección: {cfg.listen_host}:{cfg.listen_port}")
-    logging.info(f"  - Health: {cfg.listen_host}:{cfg.health_listen_port}")
-    
-    peers_str = [f"{p.id}@{p.host}:{p.port}" for p in cfg.peers]
-    logging.info(f"Peers: {peers_str}")
-    
-    targets_str = [f"{t.name}@{t.host}:{t.port} ({t.container_name})" for t in cfg.controller_targets]
-    logging.info(f"Controller targets: {targets_str}")
 
     ring_node = RingNode(cfg)
     _current_node = ring_node
@@ -136,19 +127,18 @@ def _run() -> None:
         ring_node.run()
     finally:
         if election_thread.is_alive():
-            logging.info(f"Esperando thread de elección inicial...")
             election_thread.join(timeout=3.0)
         try:
             health.stop()
         except Exception as e:
-            logging.error(f"Error deteniendo health: {e}")
-        
+            pass
+
         try:
             ring_node.stop()
         except Exception as e:
-            logging.error(f"Error deteniendo ring: {e}")
+            pass
         
-        logging.info("Nodo apagado completamente.")
+        logging.info(f"action: close_down | result: success")
 
 
 def main() -> None:
@@ -160,7 +150,7 @@ def main() -> None:
     try:
         _run()
     except KeyboardInterrupt:
-        logging.debug("KeyboardInterrupt recibido. Apagando...")
+        logging.debug(f"KeyboardInterrupt recibido. Apagando...")
         _handle_signal(signal.SIGINT, None)
 
 

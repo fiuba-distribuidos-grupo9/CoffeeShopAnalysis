@@ -35,7 +35,7 @@ class ControllerTarget:
     name: str
     host: str
     port: int
-    container_name: str  # nombre del contenedor Docker para revivir
+    container_name: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -60,7 +60,7 @@ class Config:
     controller_targets: List[ControllerTarget] = field(default_factory=list)
     
     heartbeat_interval_ms: int = 800
-    heartbeat_timeout_ms: int = 1000  # 1 segundo
+    heartbeat_timeout_ms: int = 1000  
     heartbeat_max_retries: int = 5
     suspect_grace_ms: int = 1200
     
@@ -79,7 +79,6 @@ class Config:
     docker_host: Optional[str] = "unix:///var/run/docker.sock"
 
     def __post_init__(self):
-        # Validación básica
         if self.mode not in ("auto", "manual"):
             raise ValueError(f"mode debe ser 'auto' o 'manual', no '{self.mode}'")
         if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR"):
