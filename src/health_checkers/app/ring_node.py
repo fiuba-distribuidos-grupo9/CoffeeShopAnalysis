@@ -91,7 +91,8 @@ class RingNode:
             payload={
                 "leader_id": leader_id,
                 "initiator_id": leader_id
-            }
+            },
+            notifying_revived=True
         )
         
         election_port = self._get_election_port_for_host(target_host)

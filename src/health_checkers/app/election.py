@@ -97,7 +97,7 @@ class Election:
                     return
             self._active_elections[initiator_id] = candidate_id
 
-        logging.info(f"logging.infoNodo {node_id} recibió election: candidate={candidate_id}, initiator={initiator_id}")
+        logging.info(f"Nodo {node_id} recibió election: candidate={candidate_id}, initiator={initiator_id}")
 
         if candidate_id > node_id:
             logging.info(f"ID recibido mayor: {candidate_id}. Reenvio el mensaje")
@@ -118,6 +118,7 @@ class Election:
     def handle_coordinator(self, msg: Message) -> None:
         leader_id = msg.payload.get("leader_id")
         initiator_id = msg.payload.get("initiator_id", leader_id)
+        is_notifying_revived = msg.notifying_revived
         
         if leader_id is None:
             return
@@ -144,5 +145,8 @@ class Election:
             self._leader_id = leader_id
             self._active_elections.clear()
         
+        if is_notifying_revived:
+            logging.info(f"Nodo {node_id} revivido acepta el lider")
+            return
         logging.info(f"Nodo {node_id} acepta líder {leader_id} y reenvía")
         self.send_to_successor(msg)

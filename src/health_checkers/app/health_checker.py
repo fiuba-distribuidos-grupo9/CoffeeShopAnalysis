@@ -154,7 +154,7 @@ class HealthChecker:
                 kind="heartbeat_ack",
                 src_id=self.cfg.node_id,
                 src_name=self.cfg.node_name,
-                payload={}
+                payload={},
             )
             try:
                 if not self._sock_valid():
@@ -177,7 +177,7 @@ class HealthChecker:
                     kind="leader_alive_ack",
                     src_id=self.cfg.node_id,
                     src_name=self.cfg.node_name,
-                    payload={}
+                    payload={},
                 )
                 try:
                     self.sock.sendto(ack.to_json().encode("utf-8"), addr)
@@ -223,7 +223,7 @@ class HealthChecker:
             kind="heartbeat",
             src_id=self.cfg.node_id,
             src_name=self.cfg.node_name,
-            payload={}
+            payload={},
         )
         for attempt in range(1, max_retries + 1):
             if not self._running.is_set():
@@ -325,7 +325,7 @@ class HealthChecker:
             kind="is_leader_alive",
             src_id=self.cfg.node_id,
             src_name=self.cfg.node_name,
-            payload={}
+            payload={},
         )
 
         if not self._sock_valid():

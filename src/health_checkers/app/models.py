@@ -92,6 +92,7 @@ class Message:
     src_id: int
     src_name: str
     payload: Dict[str, Any] = field(default_factory=dict)
+    notifying_revived: bool = False
 
     VALID_KINDS = {
         "heartbeat", "heartbeat_ack",
@@ -109,7 +110,8 @@ class Message:
             "kind": self.kind,
             "src_id": self.src_id,
             "src_name": self.src_name,
-            "payload": self.payload
+            "payload": self.payload,
+            "notifying_revived": self.notifying_revived
         }
 
     def to_json(self) -> str:
@@ -124,7 +126,8 @@ class Message:
             kind=str(data["kind"]),
             src_id=int(data["src_id"]),
             src_name=str(data["src_name"]),
-            payload=dict(data.get("payload", {}))
+            payload=dict(data.get("payload", {})),
+            notifying_revived=bool(data.get("notifying_revived", False))
         )
 
     @classmethod
@@ -134,5 +137,6 @@ class Message:
             kind=str(data["kind"]),
             src_id=int(data["src_id"]),
             src_name=str(data["src_name"]),
-            payload=dict(data.get("payload", {}))
+            payload=dict(data.get("payload", {})),
+            notifying_revived=bool(data.get("notifying_revived", False))
         )
