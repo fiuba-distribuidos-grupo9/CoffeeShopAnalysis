@@ -1,3 +1,5 @@
+from typing import Any
+
 from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
 
@@ -55,3 +57,8 @@ class HandshakeMessage(Message):
 
     def id(self) -> str:
         return self._id
+
+    # ============================== VISITOR ============================== #
+
+    def accept(self, visitor: Any) -> Any:
+        return visitor.visit_handshake_message(self)

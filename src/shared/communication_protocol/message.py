@@ -102,3 +102,9 @@ class Message(ABC):
         encoded_payload += self.payload()
         encoded_payload += constants.MSG_END_DELIMITER
         return encoded_payload
+
+    # ============================== VISITOR ============================== #
+
+    @abstractmethod
+    def accept(self, visitor: Any) -> Any:
+        raise NotImplementedError("subclass responsibility")

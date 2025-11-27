@@ -1,11 +1,12 @@
 import logging
 import threading
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional
 
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
+from shared.duplicate_message_checker import DuplicateMessageChecker
 
 
 class BaseDataHandler:
@@ -52,6 +53,9 @@ class BaseDataHandler:
 
         self.is_stopped = is_stopped
 
+        self._prev_controllers_last_message: dict[int, Message] = {}
+        self._duplicate_message_checker = DuplicateMessageChecker(self)
+
     # ============================== PRIVATE - LOGGING ============================== #
 
     def _log_debug(self, text: str) -> None:
@@ -71,7 +75,24 @@ class BaseDataHandler:
     def mom_consumer(self) -> RabbitMQMessageMiddlewareQueue:
         return self._mom_consumer
 
+    def update_last_message(self, message: Message, controller_id: int) -> None:
+        self._prev_controllers_last_message[controller_id] = message
+
+    def last_message_of(self, controller_id: int) -> Optional[Message]:
+        return self._prev_controllers_last_message.get(controller_id)
+
+    # ============================== PRIVATE - MANAGING STATE ============================== #
+
+    def _start_from_last_state(self) -> None:
+        pass
+
+    def _save_current_state(self) -> None:
+        pass
+
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
+
+    def is_duplicate_message(self, message: Message) -> bool:
+        return self._duplicate_message_checker.is_duplicated(message)
 
     def _handle_base_data_batch_message(self, message: BatchMessage) -> None:
         session_id = message.session_id()
@@ -118,16 +139,22 @@ class BaseDataHandler:
             return
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
-        if isinstance(message, BatchMessage):
-            self._handle_base_data_batch_message(message)
-        elif isinstance(message, EOFMessage):
-            self._handle_base_data_batch_eof(message)
+        if not self.is_duplicate_message(message):
+            if isinstance(message, BatchMessage):
+                self._handle_base_data_batch_message(message)
+            elif isinstance(message, EOFMessage):
+                self._handle_base_data_batch_eof(message)
+            self._save_current_state()
+        else:
+            self._log_info(
+                f"action: duplicate_message_ignored | result: success | message: {message}"
+            )
 
     # ============================== PRIVATE - RUN ============================== #
 
     def _run(self) -> None:
         self._log_info(f"action: handler_running | result: success")
-
+        self._start_from_last_state()
         self._mom_consumer.start_consuming(self._handle_base_data)
 
     def _close_all(self) -> None:

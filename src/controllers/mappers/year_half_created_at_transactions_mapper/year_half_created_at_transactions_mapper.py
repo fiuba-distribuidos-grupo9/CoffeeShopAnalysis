@@ -1,5 +1,4 @@
 import logging
-import uuid
 from typing import Any
 
 from controllers.mappers.shared.mapper import Mapper

@@ -1,5 +1,4 @@
 import logging
-import uuid
 from typing import Any
 
 from controllers.filters.shared.filter import Filter
@@ -84,6 +83,14 @@ class FilterTransactionsByYear(Filter):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
+    def _mom_send_message_to_next_fairly(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(mom_producers)
+        mom_producer = mom_producers[hash]
+        mom_producer.send(str(message))
+
     def _mom_send_message_to_next_sharding(
         self, message: BatchMessage, mom_producers: list[MessageMiddleware]
     ) -> None:
@@ -117,17 +124,9 @@ class FilterTransactionsByYear(Filter):
             )
             mom_producer.send(str(message))
 
-    def _mom_send_message_to_next_fairly(
-        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
-    ) -> None:
-        sharding_value = simple_hash(message.message_id())
-        hash = sharding_value % len(mom_producers)
-        mom_producer = mom_producers[hash]
-        mom_producer.send(str(message))
-
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
-        self._mom_send_message_to_next_sharding(message, self._mom_producers_1)
-        self._mom_send_message_to_next_fairly(message, self._mom_producers_2)
+        self._mom_send_message_to_next_fairly(message, self._mom_producers_1)
+        self._mom_send_message_to_next_sharding(message, self._mom_producers_2)
 
     def _mom_send_message_through_all_producers(self, message: Message) -> None:
         for mom_producer in self._mom_producers_1:

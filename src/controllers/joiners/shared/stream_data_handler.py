@@ -1,12 +1,13 @@
 import logging
 import threading
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional
 
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
+from shared.duplicate_message_checker import DuplicateMessageChecker
 from shared.simple_hash import simple_hash
 
 
@@ -79,6 +80,9 @@ class StreamDataHandler:
 
         self.is_stopped = is_stopped
 
+        self._prev_controllers_last_message: dict[int, Message] = {}
+        self._duplicate_message_checker = DuplicateMessageChecker(self)
+
     # ============================== PRIVATE - LOGGING ============================== #
 
     def _log_debug(self, text: str) -> None:
@@ -103,6 +107,20 @@ class StreamDataHandler:
     ) -> RabbitMQMessageMiddlewareQueue:
         return self._mom_consumer
 
+    def update_last_message(self, message: Message, controller_id: int) -> None:
+        self._prev_controllers_last_message[controller_id] = message
+
+    def last_message_of(self, controller_id: int) -> Optional[Message]:
+        return self._prev_controllers_last_message.get(controller_id)
+
+    # ============================== PRIVATE - MANAGING STATE ============================== #
+
+    def _start_from_last_state(self) -> None:
+        pass
+
+    def _save_current_state(self) -> None:
+        pass
+
     # ============================== PRIVATE - JOIN ============================== #
 
     def _should_be_joined(
@@ -118,13 +136,10 @@ class StreamDataHandler:
         return base_value == stream_value  # type: ignore
 
     def _join_with_base_data(self, message: BatchMessage) -> BatchMessage:
-        message_type = message.message_type()
-        session_id = message.session_id()
-        stream_batch_items = message.batch_items()
         joined_batch_items: list[dict[str, str]] = []
-        for stream_batch_item in stream_batch_items:
+        for stream_batch_item in message.batch_items():
             was_joined = False
-            for base_batch_item in self._base_data_by_session_id[session_id]:
+            for base_batch_item in self._base_data_by_session_id[message.session_id()]:
                 if self._should_be_joined(base_batch_item, stream_batch_item):
                     joined_batch_item = {**stream_batch_item, **base_batch_item}
                     joined_batch_items.append(joined_batch_item)
@@ -134,15 +149,13 @@ class StreamDataHandler:
                 self._log_warning(
                     f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
                 )
-        return BatchMessage(
-            message_type=message_type,
-            session_id=session_id,
-            message_id=message.message_id(),
-            controller_id=str(self._controller_id),
-            batch_items=joined_batch_items,
-        )
+        message.update_batch_items(joined_batch_items)
+        return message
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
+
+    def is_duplicate_message(self, message: Message) -> bool:
+        return self._duplicate_message_checker.is_duplicated(message)
 
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
         sharding_value = simple_hash(message.message_id())
@@ -254,7 +267,7 @@ class StreamDataHandler:
 
     def _run(self) -> None:
         self._log_info(f"action: handler_running | result: success")
-
+        self._start_from_last_state()
         self._mom_consumer.start_consuming(self._handle_stream_data)
 
     def _close_all(self) -> None:

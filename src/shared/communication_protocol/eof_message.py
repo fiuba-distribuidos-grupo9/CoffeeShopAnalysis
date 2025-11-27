@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
@@ -82,6 +82,16 @@ class EOFMessage(Message):
     def session_id(self) -> str:
         return self._session_id
 
+    def message_id(self) -> str:
+        if self._message_id is None:
+            raise ValueError("Message ID is not set")
+        return self._message_id
+
+    def controller_id(self) -> str:
+        if self._controller_id is None:
+            raise ValueError("Controller ID is not set")
+        return self._controller_id
+
     def batch_message_type(self) -> str:
         return self._batch_message_type
 
@@ -102,3 +112,20 @@ class EOFMessage(Message):
 
     def update_controller_id(self, new_controller_id: str) -> None:
         self._controller_id = new_controller_id
+
+    # ============================== VISITOR ============================== #
+
+    def accept(self, visitor: Any) -> Any:
+        return visitor.visit_eof_message(self)
+
+    # ============================== COMPARING ============================== #
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, EOFMessage):
+            return False
+
+        return (
+            self.session_id() == other.session_id()
+            and self.message_id() == other.message_id()
+            and self.controller_id() == other.controller_id()
+        )

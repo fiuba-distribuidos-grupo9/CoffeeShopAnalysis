@@ -1,12 +1,13 @@
 import logging
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 from controllers.shared.controller import Controller
 from middleware.middleware import MessageMiddleware
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
+from shared.duplicate_message_checker import DuplicateMessageChecker
 
 
 class Mapper(Controller):
@@ -32,6 +33,39 @@ class Mapper(Controller):
             rabbitmq_host, consumers_config
         )
 
+    def __init__(
+        self,
+        controller_id: int,
+        rabbitmq_host: str,
+        consumers_config: dict[str, Any],
+        producers_config: dict[str, Any],
+    ) -> None:
+        super().__init__(
+            controller_id,
+            rabbitmq_host,
+            consumers_config,
+            producers_config,
+        )
+
+        self._prev_controllers_last_message: dict[int, Message] = {}
+        self._duplicate_message_checker = DuplicateMessageChecker(self)
+
+    # ============================== PRIVATE - ACCESSING ============================== #
+
+    def update_last_message(self, message: Message, controller_id: int) -> None:
+        self._prev_controllers_last_message[controller_id] = message
+
+    def last_message_of(self, controller_id: int) -> Optional[Message]:
+        return self._prev_controllers_last_message.get(controller_id)
+
+    # ============================== PRIVATE - MANAGING STATE ============================== #
+
+    def _start_from_last_state(self) -> None:
+        pass
+
+    def _save_current_state(self) -> None:
+        pass
+
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
     def _stop(self) -> None:
@@ -53,6 +87,9 @@ class Mapper(Controller):
         return message
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
+
+    def is_duplicate_message(self, message: Message) -> bool:
+        return self._duplicate_message_checker.is_duplicated(message)
 
     @abstractmethod
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
@@ -109,15 +146,22 @@ class Mapper(Controller):
             return
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
-        if isinstance(message, BatchMessage):
-            self._handle_data_batch_message(message)
-        elif isinstance(message, EOFMessage):
-            self._handle_data_batch_eof_message(message)
+        if not self.is_duplicate_message(message):
+            if isinstance(message, BatchMessage):
+                self._handle_data_batch_message(message)
+            elif isinstance(message, EOFMessage):
+                self._handle_data_batch_eof_message(message)
+            self._save_current_state()
+        else:
+            logging.info(
+                f"action: duplicate_message_ignored | result: success | message: {message}"
+            )
 
     # ============================== PRIVATE - RUN ============================== #
 
     def _run(self) -> None:
         super()._run()
+        self._start_from_last_state()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
     @abstractmethod

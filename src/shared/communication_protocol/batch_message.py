@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
@@ -189,3 +189,21 @@ class BatchMessage(Message):
 
     def update_batch_items(self, new_batch_items: list[dict[str, str]]) -> None:
         self._batch_items = new_batch_items
+
+    # ============================== VISITOR ============================== #
+
+    def accept(self, visitor: Any) -> Any:
+        return visitor.visit_batch_message(self)
+
+    # ============================== COMPARING ============================== #
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, BatchMessage):
+            return False
+
+        return (
+            self.message_type() == other.message_type()
+            and self.session_id() == other.session_id()
+            and self.message_id() == other.message_id()
+            and self.controller_id() == other.controller_id()
+        )
