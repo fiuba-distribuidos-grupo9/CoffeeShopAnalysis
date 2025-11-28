@@ -17,7 +17,7 @@ def parse_peers(peers_env: str, current_node_id: int) -> List[Peer]:
     """
     Expected format: host:port,host:port,...
     host = name_id 
-    Example --> hc_container_1:9101,hc_container_2:9101
+    Example --> hc_1:9101,hc_2:9101
     """
     peers: List[Peer] = []
     if not peers_env:
@@ -48,7 +48,7 @@ def parse_peers(peers_env: str, current_node_id: int) -> List[Peer]:
 def parse_controller_targets(targets_env: str) -> List[ControllerTarget]:
     """
     Expected format: host:port,host2:port2,
-    Example: hc_container_1:9201,hc_container_2:9201
+    Example: hc_1:9201,hc_2:9201
     """
     targets: List[ControllerTarget] = []
     if not targets_env:
@@ -84,7 +84,7 @@ def parse_controller_targets(targets_env: str) -> List[ControllerTarget]:
 
 def load_config_from_env() -> Config:
     node_id = int(os.getenv("NODE_ID", "1"))
-    node_name = os.getenv("NODE_NAME", f"hc_container_{node_id}")
+    node_name = os.getenv("NODE_NAME", f"hc_{node_id}")
     
     peers = parse_peers(os.getenv("RING_PEERS", ""), node_id)
     controller_targets = parse_controller_targets(os.getenv("CONTROLLER_TARGETS", ""))

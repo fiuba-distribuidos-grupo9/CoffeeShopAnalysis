@@ -1,18 +1,18 @@
 services:
-  hc_container_1:
+  hc_1:
     image: ${IMAGE_NAME}
-    container_name: hc_container_1
+    container_name: hc_1
     networks:
       - ringnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ID=1
-      - NODE_NAME=hc_container_1
+      - NODE_NAME=hc_1
       - LISTEN_PORT=${LISTEN_PORT}
       - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}
-      - RING_PEERS=hc_container_2:9101,hc_container_3:9101,hc_container_4:9101,hc_container_5:9101
-      - CONTROLLER_TARGETS=hc_container_2:9201,hc_container_3:9201,hc_container_4:9201,hc_container_5:9201
+      - RING_PEERS=hc_2:9101,hc_3:9101,hc_4:9101,hc_5:9101
+      - CONTROLLER_TARGETS=hc_2:9201,hc_3:9201,hc_4:9201,hc_5:9201
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}
@@ -27,20 +27,20 @@ services:
       - LEADER_RANDOM_SLEEP_MAX_MS=${LEADER_RANDOM_SLEEP_MAX_MS}
       - DOCKER_HOST=${DOCKER_HOST}
 
-  hc_container_2:
+  hc_2:
     image: ${IMAGE_NAME}
-    container_name: hc_container_2
+    container_name: hc_2
     networks:
       - ringnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ID=2
-      - NODE_NAME=hc_container_2
+      - NODE_NAME=hc_2
       - LISTEN_PORT=${LISTEN_PORT}
       - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}
-      - RING_PEERS=hc_container_1:9101,hc_container_3:9101,hc_container_4:9101,hc_container_5:9101
-      - CONTROLLER_TARGETS=hc_container_1:9201,hc_container_3:9201,hc_container_4:9201,hc_container_5:9201
+      - RING_PEERS=hc_1:9101,hc_3:9101,hc_4:9101,hc_5:9101
+      - CONTROLLER_TARGETS=hc_1:9201,hc_3:9201,hc_4:9201,hc_5:9201
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}
@@ -55,20 +55,20 @@ services:
       - LEADER_RANDOM_SLEEP_MAX_MS=${LEADER_RANDOM_SLEEP_MAX_MS}
       - DOCKER_HOST=${DOCKER_HOST}
 
-  hc_container_3:
+  hc_3:
     image: ${IMAGE_NAME}
-    container_name: hc_container_3
+    container_name: hc_3
     networks:
       - ringnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ID=3
-      - NODE_NAME=hc_container_3
+      - NODE_NAME=hc_3
       - LISTEN_PORT=${LISTEN_PORT}
       - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}
-      - RING_PEERS=hc_container_1:9101,hc_container_2:9101,hc_container_4:9101,hc_container_5:9101
-      - CONTROLLER_TARGETS=hc_container_1:9201,hc_container_2:9201,hc_container_4:9201,hc_container_5:9201
+      - RING_PEERS=hc_1:9101,hc_2:9101,hc_4:9101,hc_5:9101
+      - CONTROLLER_TARGETS=hc_1:9201,hc_2:9201,hc_4:9201,hc_5:9201
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}
@@ -83,20 +83,20 @@ services:
       - LEADER_RANDOM_SLEEP_MAX_MS=${LEADER_RANDOM_SLEEP_MAX_MS}
       - DOCKER_HOST=${DOCKER_HOST}
 
-  hc_container_4:
+  hc_4:
     image: ${IMAGE_NAME}
-    container_name: hc_container_4
+    container_name: hc_4
     networks:
       - ringnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ID=4
-      - NODE_NAME=hc_container_4
+      - NODE_NAME=hc_4
       - LISTEN_PORT=${LISTEN_PORT}
       - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}
-      - RING_PEERS=hc_container_1:9101,hc_container_2:9101,hc_container_3:9101,hc_container_5:9101
-      - CONTROLLER_TARGETS=hc_container_1:9201,hc_container_2:9201,hc_container_3:9201,hc_container_5:9201
+      - RING_PEERS=hc_1:9101,hc_2:9101,hc_3:9101,hc_5:9101
+      - CONTROLLER_TARGETS=hc_1:9201,hc_2:9201,hc_3:9201,hc_5:9201
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}
@@ -111,20 +111,20 @@ services:
       - LEADER_RANDOM_SLEEP_MAX_MS=${LEADER_RANDOM_SLEEP_MAX_MS}
       - DOCKER_HOST=${DOCKER_HOST}
 
-  hc_container_5:
+  hc_5:
     image: ${IMAGE_NAME}
-    container_name: hc_container_5
+    container_name: hc_5
     networks:
       - ringnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ID=5
-      - NODE_NAME=hc_container_5
+      - NODE_NAME=hc_5
       - LISTEN_PORT=${LISTEN_PORT}
       - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}
-      - RING_PEERS=hc_container_1:9101,hc_container_2:9101,hc_container_3:9101,hc_container_4:9101
-      - CONTROLLER_TARGETS=hc_container_1:9201,hc_container_2:9201,hc_container_3:9201,hc_container_4:9201
+      - RING_PEERS=hc_1:9101,hc_2:9101,hc_3:9101,hc_4:9101
+      - CONTROLLER_TARGETS=hc_1:9201,hc_2:9201,hc_3:9201,hc_4:9201
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}

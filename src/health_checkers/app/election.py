@@ -25,11 +25,19 @@ class Election:
 
     def set_leader(self, leader_id: Optional[int]) -> None:
         with self._lock:
+            old_leader = self._leader_id
             self._leader_id = leader_id
+            
             if leader_id is None:
                 self._active_elections.clear()
                 self._completed_elections.clear()
-            logging.info(f"action: set_leader | result: success | new_leader: {leader_id}")
+                logging.info(
+                    f"action: set_leader | result: success | new_leader: {leader_id} | "
+                    f"old_leader: {old_leader} | state_cleaned: True"
+                )
+            else:
+                logging.info(f"action: set_leader | result: success | new_leader: {leader_id}")
+
 
     def start_election(self) -> None:
         """Inicia una elección si no hay otra en curso."""

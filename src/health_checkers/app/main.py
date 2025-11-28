@@ -8,12 +8,11 @@ from pathlib import Path
 from typing import Optional
 
 from .utils import load_config_from_env, jitter_ms
-from .node import Node  # CAMBIO: Importar Node en lugar de RingNode y HealthChecker
+from .node import Node  
 from shared import initializer
 
 _shutdown_event = threading.Event()
-_current_node: Optional[Node] = None  # CAMBIO: Solo un objeto Node
-
+_current_node: Optional[Node] = None  
 STATE_FILE = Path("/tmp/hc_started.flag")
 
 
@@ -49,7 +48,7 @@ def _mark_started() -> None:
         pass
 
 
-def _smart_election_start(node: Node, cfg) -> None:  # CAMBIO: Recibe Node en lugar de RingNode
+def _smart_election_start(node: Node, cfg) -> None:
     is_first_start = _is_first_start()
     
     if is_first_start:

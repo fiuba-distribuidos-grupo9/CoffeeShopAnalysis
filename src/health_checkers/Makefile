@@ -9,8 +9,8 @@ up: build
 	@docker-compose -f $(COMPOSE_FILE) up -d
 
 down:
-	@docker kill hc_container_1 hc_container_2 hc_container_3 hc_container_4 hc_container_5 2>/dev/null || true
-	@docker rm -f hc_container_1 hc_container_2 hc_container_3 hc_container_4 hc_container_5 2>/dev/null || true
+	@docker kill hc_1 hc_2 hc_3 hc_4 hc_5 2>/dev/null || true
+	@docker rm -f hc_1 hc_2 hc_3 hc_4 hc_5 2>/dev/null || true
 	@docker network rm ringnet 2>/dev/null || true
 	
 
@@ -21,31 +21,31 @@ logs:
 	@docker-compose -f $(COMPOSE_FILE) logs -f
 
 logs1:
-	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_1
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_1
 
 logs2: 
-	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_2
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_2
 
 logs3: 
-	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_3
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_3
 
 logs4:
-	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_4
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_4
 
 logs5: 
-	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_5
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_5
 
 stop1: 
-	@docker kill hc_container_1
+	@docker kill hc_1
 
 stop2: 
-	@docker kill hc_container_2
+	@docker kill hc_2
 
 stop3: 
-	@docker kill hc_container_3
+	@docker kill hc_3
 
 stop4: 
-	@docker kill hc_container_4
+	@docker kill hc_4
 
 stop5:
-	@docker kill hc_container_5
+	@docker kill hc_5
