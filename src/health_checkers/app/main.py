@@ -8,14 +8,11 @@ from pathlib import Path
 from typing import Optional
 
 from .utils import load_config_from_env, jitter_ms
-from .ring_node import RingNode
-from .health_checker import HealthChecker
-from .health_callbacks import HealthCallbacks
+from .node import Node  # CAMBIO: Importar Node en lugar de RingNode y HealthChecker
 from shared import initializer
 
 _shutdown_event = threading.Event()
-_current_node: Optional[RingNode] = None
-_current_health: Optional[HealthChecker] = None
+_current_node: Optional[Node] = None  # CAMBIO: Solo un objeto Node
 
 STATE_FILE = Path("/tmp/hc_started.flag")
 
@@ -28,17 +25,11 @@ def _signal_name(signum: int) -> str:
 
 
 def _handle_signal(signum, frame):
-    global _current_node, _current_health
+    global _current_node
 
     name = _signal_name(signum)
-    logging.info(f"action: sigal_received | signal: {signum} ({name}) | result: success")
+    logging.info(f"action: signal_received | signal: {signum} ({name}) | result: success")
     _shutdown_event.set()
-
-    if _current_health is not None:
-        try:
-            _current_health.stop()
-        except Exception as e:
-            pass
 
     if _current_node is not None:
         try:
@@ -58,7 +49,7 @@ def _mark_started() -> None:
         pass
 
 
-def _smart_election_start(ring_node: RingNode, cfg) -> None:
+def _smart_election_start(node: Node, cfg) -> None:  # CAMBIO: Recibe Node en lugar de RingNode
     is_first_start = _is_first_start()
     
     if is_first_start:
@@ -69,7 +60,7 @@ def _smart_election_start(ring_node: RingNode, cfg) -> None:
         
         if not _shutdown_event.is_set():
             try:
-                ring_node.election.start_election()
+                node.election.start_election()
             except Exception as e:
                 logging.error(f"action: first_election | result: fail | error: {e}")
     else:
@@ -81,61 +72,46 @@ def _smart_election_start(ring_node: RingNode, cfg) -> None:
         logging.info(f"action: controller_revived | result: success")
         
         while elapsed < discovery_timeout and not _shutdown_event.is_set():
-            if ring_node.election.leader_id is not None:
-                logging.info(f"action: leader_discovered | result: success | new_leader: {ring_node.election.leader_id}")
+            if node.election.leader_id is not None:
+                logging.info(f"action: leader_discovered | result: success | new_leader: {node.election.leader_id}")
                 return
             time.sleep(check_interval)
             elapsed += check_interval
         
-        if ring_node.election.leader_id is None:
+        if node.election.leader_id is None:
             logging.info(f"action: leader_discovered | result: fail | new_action: start_election")
             try:
-                ring_node.election.start_election()
+                node.election.start_election()
             except Exception as e:
                 logging.error(f"action: start_election | result: fail | error: {e}")
 
 
 def _run() -> None:
-    global _current_node, _current_health
+    global _current_node
 
     cfg = load_config_from_env()
 
-    ring_node = RingNode(cfg)
-    _current_node = ring_node
+    node = Node(cfg)
+    _current_node = node
 
-    callbacks = HealthCallbacks(ring_node)
-
-    health = HealthChecker(
-        cfg=cfg,
-        is_leader_callable=ring_node.is_leader,
-        get_leader_info=ring_node.get_leader_info,
-        on_leader_dead=callbacks.on_leader_dead,
-        notify_revived_node=callbacks.notify_revived_node
-    )
-    _current_health = health
-
-    health.start()
+    node.start()
 
     election_thread = threading.Thread(
         target=_smart_election_start,
-        args=(ring_node, cfg),
+        args=(node, cfg),
         name=f"ElectionStart-{cfg.node_id}",
         daemon=False
     )
     election_thread.start()
 
     try:
-        ring_node.run()
+        node.run()
     finally:
         if election_thread.is_alive():
             election_thread.join(timeout=3.0)
+        
         try:
-            health.stop()
-        except Exception as e:
-            pass
-
-        try:
-            ring_node.stop()
+            node.stop()
         except Exception as e:
             pass
         
