@@ -1,47 +1,51 @@
 .PHONY: up down build logs1 logs2 logs3 logs4 logs5 stop1 stop2 stop3 stop4 stop5
 
-up:
-	@docker build -t tp-health-checker:latest -f Dockerfile ..
-	@./run_ring.sh
+IMAGE_NAME := tp-health-checker
+COMPOSE_FILE := docker-compose.yaml
+ENV_FILE := .env
+
+
+up: build
+	@docker-compose -f $(COMPOSE_FILE) up -d
 
 down:
-	@docker kill hc1_container hc2_container hc3_container hc4_container hc5_container 2>/dev/null || true
-	@docker rm -f hc1_container hc2_container hc3_container hc3_container hc4_container hc5_container 2>/dev/null || true
+	@docker kill hc_container_1 hc_container_2 hc_container_3 hc_container_4 hc_container_5 2>/dev/null || true
+	@docker rm -f hc_container_1 hc_container_2 hc_container_3 hc_container_4 hc_container_5 2>/dev/null || true
+	@docker network rm ringnet 2>/dev/null || true
+	
 
 build:
-	@docker build -t tp-health-checker -f Dockerfile ..
+	@docker build -t $(IMAGE_NAME):latest -f Dockerfile ..
+
 logs:
-	@for c in hc1_container hc2_container hc3_container hc4_container hc5_container; do \
-		docker logs -f $$c & \
-	done; \
-	wait
+	@docker-compose -f $(COMPOSE_FILE) logs -f
 
 logs1:
-	@docker logs -f hc1_container
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_1
 
-logs2:
-	@docker logs -f hc2_container
+logs2: 
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_2
 
-logs3:
-	@docker logs -f hc3_container
+logs3: 
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_3
 
 logs4:
-	@docker logs -f hc4_container
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_4
 
-logs5:
-	@docker logs -f hc5_container
+logs5: 
+	@docker-compose -f $(COMPOSE_FILE) logs -f hc_container_5
 
-stop1:
-	@docker stop hc1_container
+stop1: 
+	@docker kill hc_container_1
 
-stop2:
-	@docker stop hc2_container
+stop2: 
+	@docker kill hc_container_2
 
-stop3:
-	@docker stop hc3_container
+stop3: 
+	@docker kill hc_container_3
 
-stop4:
-	@docker stop hc4_container
+stop4: 
+	@docker kill hc_container_4
 
 stop5:
-	@docker stop hc5_container
+	@docker kill hc_container_5

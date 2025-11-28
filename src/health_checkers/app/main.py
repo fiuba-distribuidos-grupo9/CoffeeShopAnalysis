@@ -77,6 +77,7 @@ def _smart_election_start(ring_node: RingNode, cfg) -> None:
         check_interval = 0.5
         elapsed = 0.0
         
+        logging.info(f"---------------------------------------------")
         logging.info(f"action: controller_revived | result: success")
         
         while elapsed < discovery_timeout and not _shutdown_event.is_set():

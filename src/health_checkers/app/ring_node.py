@@ -76,7 +76,7 @@ class RingNode:
                 return (self.cfg.listen_host, self.cfg.health_listen_port)
 
             for target in self.cfg.controller_targets:
-                if target.name == f"hc-{leader_id}":
+                if target.name == f"hc_container_{leader_id}":
                     return (target.host, target.port)
 
             return None

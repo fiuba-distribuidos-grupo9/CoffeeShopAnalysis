@@ -31,7 +31,6 @@ class Peer:
 
 @dataclass
 class ControllerTarget:
-    """Representa un controlador a monitorear (puede ser un HC u otro servicio)."""
     name: str
     host: str
     port: int
@@ -73,16 +72,9 @@ class Config:
     leader_sleep_min_ms: int = 1500
     leader_sleep_max_ms: int = 5000
     
-    mode: str = "auto"
     log_level: str = "INFO"
     
     docker_host: Optional[str] = "unix:///var/run/docker.sock"
-
-    def __post_init__(self):
-        if self.mode not in ("auto", "manual"):
-            raise ValueError(f"mode debe ser 'auto' o 'manual', no '{self.mode}'")
-        if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR"):
-            raise ValueError(f"log_level inválido: '{self.log_level}'")
 
 
 @dataclass
