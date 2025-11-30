@@ -18,7 +18,7 @@ class BaseDataHandler:
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers: dict[str, int] = {}
+        self._prev_controllers_eof_recv: dict[str, int] = {}
         self._prev_controllers_amount = consumers_config[
             "base_data_prev_controllers_amount"
         ]
@@ -105,7 +105,7 @@ class BaseDataHandler:
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._eof_recv_from_prev_controllers[session_id]
+        del self._prev_controllers_eof_recv[session_id]
 
         logging.info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
@@ -113,16 +113,13 @@ class BaseDataHandler:
 
     def _handle_base_data_batch_eof(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
-        self._eof_recv_from_prev_controllers[session_id] += 1
+        self._prev_controllers_eof_recv.setdefault(session_id, 0)
+        self._prev_controllers_eof_recv[session_id] += 1
         self._log_debug(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if (
-            self._eof_recv_from_prev_controllers[session_id]
-            == self._prev_controllers_amount
-        ):
+        if self._prev_controllers_eof_recv[session_id] == self._prev_controllers_amount:
             self._log_info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )

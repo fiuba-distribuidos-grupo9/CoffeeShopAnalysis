@@ -2,6 +2,7 @@ from abc import abstractmethod
 from typing import Any
 
 from shared.communication_protocol.message import Message
+from shared.file_protocol import constants
 from shared.file_protocol.metadata_section import MetadataSection
 
 
@@ -20,7 +21,9 @@ class PrevControllersLastMessage(MetadataSection):
         prev_controllers_last_message = {}
 
         for line in lines:
-            controller_id_str, message_str = line.split(":", 1)
+            controller_id_str, message_str = line.split(
+                constants.KEY_VALUE_SECTION_SEPARATOR, 1
+            )
 
             controller_id = int(controller_id_str)
             message = Message.suitable_for_str(message_str)
@@ -39,7 +42,10 @@ class PrevControllersLastMessage(MetadataSection):
     def _payload_for_file(self) -> str:
         payload = ""
         for controller_id, message in self._prev_controllers_last_message.items():
-            payload += f"{controller_id}:{str(message)}\n"
+            payload += f"{controller_id}"
+            payload += constants.KEY_VALUE_SECTION_SEPARATOR
+            payload += f"{str(message)}"
+            payload += "\n"
         return payload
 
     def prev_controllers_last_message(self) -> dict[int, Message]:

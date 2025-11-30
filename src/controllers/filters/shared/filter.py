@@ -1,5 +1,6 @@
 import logging
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Optional
 
 from controllers.shared.controller import Controller
@@ -8,6 +9,12 @@ from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.duplicate_message_checker import DuplicateMessageChecker
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.prev_controllers_last_message import (
+    PrevControllersLastMessage,
+)
 
 
 class Filter(Controller):
@@ -27,7 +34,7 @@ class Filter(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers: dict[str, int] = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
@@ -50,6 +57,10 @@ class Filter(Controller):
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
+        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_reader = MetadataReader()
+        self._atomic_writer = AtomicWriter()
+
     # ============================== PRIVATE - ACCESSING ============================== #
 
     def update_last_message(self, message: Message, controller_id: int) -> None:
@@ -60,11 +71,45 @@ class Filter(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
+    def _load_last_state(self) -> None:
+        metadata_sections = self._metadata_reader.read_from(self._metadata_file_name)
+        for section in metadata_sections:
+            # @TODO: visitor pattern can be used here
+            if isinstance(section, PrevControllersLastMessage):
+                self._prev_controllers_last_message = (
+                    section.prev_controllers_last_message()
+                )
+            elif isinstance(section, PrevControllersEOFRecv):
+                self._prev_controllers_eof_recv = section.prev_controllers_eof_recv()
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: warning | section: {section}"
+                )
+
     def _load_last_state_if_exists(self) -> None:
-        pass
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            logging.info(
+                f"action: load_last_state | result: in_progress | file: {path}"
+            )
+
+            self._load_last_state()
+
+            logging.info(
+                f"action: load_last_state | result: success | file: {path}",
+            )
+        else:
+            logging.info(
+                f"action: load_last_state_skipped | result: success | file: {path}"
+            )
 
     def _save_current_state(self) -> None:
-        pass
+        metadata_sections = [
+            PrevControllersLastMessage(self._prev_controllers_last_message),
+            PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+        ]
+        metadata_sections_str = "".join([str(section) for section in metadata_sections])
+        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -110,7 +155,7 @@ class Filter(Controller):
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._eof_recv_from_prev_controllers[session_id]
+        del self._prev_controllers_eof_recv[session_id]
 
         logging.info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
@@ -118,16 +163,16 @@ class Filter(Controller):
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
-        self._eof_recv_from_prev_controllers[session_id] += 1
+        prev_controller_id = message.controller_id()
+        self._prev_controllers_eof_recv.setdefault(
+            session_id, [False for _ in range(self._prev_controllers_amount)]
+        )
+        self._prev_controllers_eof_recv[session_id][int(prev_controller_id)] = True
         logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if (
-            self._eof_recv_from_prev_controllers[session_id]
-            == self._prev_controllers_amount
-        ):
+        if all(self._prev_controllers_eof_recv[session_id]):
             logging.info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )

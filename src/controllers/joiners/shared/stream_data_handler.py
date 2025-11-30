@@ -20,7 +20,7 @@ class StreamDataHandler:
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers: dict[str, int] = {}
+        self._prev_controllers_eof_recv: dict[str, int] = {}
         self._prev_controllers_amount = consumers_config[
             "stream_data_prev_controllers_amount"
         ]
@@ -195,7 +195,7 @@ class StreamDataHandler:
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._eof_recv_from_prev_controllers[session_id]
+        del self._prev_controllers_eof_recv[session_id]
 
         if session_id in self._stream_data_buffer_by_session_id:
             del self._stream_data_buffer_by_session_id[session_id]
@@ -215,16 +215,13 @@ class StreamDataHandler:
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
-        self._eof_recv_from_prev_controllers[session_id] += 1
+        self._prev_controllers_eof_recv.setdefault(session_id, 0)
+        self._prev_controllers_eof_recv[session_id] += 1
         self._log_debug(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if (
-            self._eof_recv_from_prev_controllers[session_id]
-            == self._prev_controllers_amount
-        ):
+        if self._prev_controllers_eof_recv[session_id] == self._prev_controllers_amount:
             with self._all_base_data_received_lock:
                 all_base_data_received = self._all_base_data_received.get(
                     session_id, False
@@ -250,7 +247,7 @@ class StreamDataHandler:
                 self._log_debug(
                     f"action: all_eofs_received_before_base_data | result: success | session_id: {session_id}"
                 )
-                self._eof_recv_from_prev_controllers[session_id] -= 1
+                self._prev_controllers_eof_recv[session_id] -= 1
                 self._mom_consumer.send(str(message))
 
     def _handle_stream_data(self, message_as_bytes: bytes) -> None:

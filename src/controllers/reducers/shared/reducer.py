@@ -29,7 +29,7 @@ class Reducer(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers = {}
+        self._prev_controllers_eof_recv = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
@@ -201,7 +201,7 @@ class Reducer(Controller):
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._eof_recv_from_prev_controllers[session_id]
+        del self._prev_controllers_eof_recv[session_id]
 
         logging.info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
@@ -209,16 +209,13 @@ class Reducer(Controller):
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
-        self._eof_recv_from_prev_controllers[session_id] += 1
+        self._prev_controllers_eof_recv.setdefault(session_id, 0)
+        self._prev_controllers_eof_recv[session_id] += 1
         logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if (
-            self._eof_recv_from_prev_controllers[session_id]
-            == self._prev_controllers_amount
-        ):
+        if self._prev_controllers_eof_recv[session_id] == self._prev_controllers_amount:
             logging.info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
