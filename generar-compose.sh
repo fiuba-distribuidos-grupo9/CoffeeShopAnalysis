@@ -1087,8 +1087,8 @@ function add-services() {
   add-comment $compose_file 'OUTPUT BUILDERS SERVICES'
   add-output-builders $compose_file
 
-  add-comment $compose_file 'HEALTH CHECKERS SERVICES'
-  add-health-checkers
+  # add-comment $compose_file 'HEALTH CHECKERS SERVICES'
+  # add-health-checkers
 }
 
 # ============================== PRIVATE - NETWORKS ============================== #
