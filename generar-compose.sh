@@ -917,6 +917,137 @@ function add-output-builders() {
   done
 }
 
+# ============================== PRIVATE - HEALTH CHECKERS ============================== #
+
+function get-targets(){
+  local targets="server,menu_items_cleaner_0,stores_cleaner_0,"
+    for ((j = 0; j < $TRANSACTION_ITEMS_CLN_AMOUNT; j++)) do
+      targets="${targets}transaction_items_cleaner_$j,"
+    done
+    for ((j = 0; j < $TRANSACTIONS_CLN_AMOUNT; j++)) do
+      targets="${targets}transactions_cleaner_$j,"
+    done
+    for ((j = 0; j < $USERS_CLN_AMOUNT; j++)) do 
+      targets="${targets}users_cleaners_$j,"
+    done
+    for ((j = 0; j < $FILTER_TRANSACTIONS_BY_YEAR_AMOUNT; j++)) do 
+      targets="${targets}filter_transactions_by_year_$j,"
+    done
+    for ((j = 0; j < $FILTER_TRANSACTIONS_BY_HOUR_AMOUNT; j++)) do 
+      targets="${targets}filter_transactions_by_hour_$j,"
+    done
+    for ((j = 0; j < $FILTER_TRANSACTIONS_BY_FINAL_AMNT_AMOUNT; j++)) do 
+      targets="${targets}filter_transactions_by_final_amount_$j,"
+    done
+    for ((j = 0; j < $FILTER_TRANSACTION_ITEMS_BY_YEAR_AMOUNT; j++)) do 
+      targets="${targets}filter_transaction_items_by_year_$j,"
+    done
+    for ((j = 0; j < $YEAR_MONTH_CREATED_AT_TRANSACTION_ITEMS_MAPPERS_AMOUNT; j++)) do 
+      targets="${targets}year_month_created_at_transaction_items_mapper_$j,"
+    done
+    for ((j = 0; j < $YEAR_HALF_CREATED_AT_TRANSACTIONS_MAPPERS_AMOUNT; j++)) do 
+      targets="${targets}year_half_created_at_transactions_mapper_$j,"
+    done
+    for ((j = 0; j < $YEAR_HALF_CREATED_AT_TRANSACTIONS_MAPPERS_AMOUNT; j++)) do 
+      targets="${targets}year_half_created_at_transactions_mapper_$j,"
+    done
+    for ((j = 0; j < $Q2_REDUCERS_AMOUNT; j++)) do 
+      targets="${targets}sellings_qty_by_item_id_and_year_month_created_at_reducer_$j,"
+      targets="${targets}profit_sum_by_item_id_and_year_month_created_at_reducer_$j,"
+    done
+    for ((j = 0; j < $Q3_REDUCERS_AMOUNT; j++)) do 
+      targets="${targets}tpv_by_store_id_and_year_half_created_at_reducer_$j,"
+    done
+    for ((j = 0; j < $Q4_REDUCERS_AMOUNT; j++)) do 
+      targets="${targets}purchases_qty_by_store_id_and_user_id_reducer_$j,"
+    done
+    for ((j = 0; j < $Q2_SORTERS_AMOUNT; j++)) do 
+      targets="${targets}desc_by_year_month_created_at_and_sellings_qty_sorter_$j,"
+      targets="${targets}desc_by_year_month_created_at_and_profit_sum_sorter_$j,"
+    done
+    for ((j = 0; j < $Q4_SORTERS_AMOUNT; j++)) do 
+      targets="${targets}desc_by_store_id_and_purchases_qty_sorter_$j,"
+    done
+    for ((j = 0; j < $Q2_JOINERS_AMOUNT; j++)) do 
+      targets="${targets}transaction_items_with_menu_items_query_21_joiner_$j,"
+      targets="${targets}transaction_items_with_menu_items_query_22_joiner_$j,"
+    done
+    for ((j = 0; j < $Q3_JOINERS_AMOUNT; j++)) do 
+      targets="${targets}transactions_with_stores_query_3x_joiner_$j,"
+    done
+    for ((j = 0; j < $Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT; j++)) do 
+      targets="${targets}transactions_with_stores_query_4x_joiner_$j,"
+    done
+    for ((j = 0; j < $Q4_TRANSACTIONS_WITH_USERS_JOINERS_AMOUNT; j++)) do 
+      targets="${targets}transactions_with_users_joiner_$j,"
+    done
+    for ((j = 0; j < $Q1X_OB_AMOUNT; j++)) do 
+      targets="${targets}query_1x_output_builder_$j,"
+    done
+    for ((j = 0; j < $Q21_OB_AMOUNT; j++)) do 
+      targets="${targets}query_21_output_builder_$j,"
+    done
+    for ((j = 0; j < $Q22_OB_AMOUNT; j++)) do 
+      targets="${targets}query_22_output_builder_$j,"
+    done
+    for ((j = 0; j < $Q3X_OB_AMOUNT; j++)) do 
+      targets="${targets}query_3x_output_builder_$j,"
+    done
+    for ((j = 0; j < $Q4X_OB_AMOUNT; j++)) do 
+      targets="${targets}query_4x_output_builder_$j,"
+    done
+    targets="${targets%,}"
+    echo $targets
+}
+
+
+
+function add-health-checkers() {
+  for ((i = 0; i < $HC_AMOUNT; i++)); do
+    add-line $compose_file "  hc_$i:"
+    add-line $compose_file "    container_name: hc_$i"
+    add-line $compose_file "    image: ${HC_IMAGE_NAME}"
+    add-line $compose_file '    volumes: '
+    add-line $compose_file '      - /var/run/docker.sock:/var/run/docker.sock'
+    add-line $compose_file '    environment:'
+    add-line $compose_file "      - NODE_ID=$i"
+    add-line $compose_file "      - NODE_NAME=hc_$i"
+    add-line $compose_file "      - LISTEN_PORT=${ELECTION_PORT}"
+    add-line $compose_file "      - HEALTH_LISTEN_PORT=${HEALTH_LISTEN_PORT}"
+    local peers=""
+    for ((j = 0; j < HC_AMOUNT; j++)); do
+      if [[ $j -eq $i ]]; then
+        continue
+      fi
+      peers="${peers}hc_$j,"
+    done
+    peers="${peers%,}"
+    targets=$(get-targets)
+    add-line $compose_file "      - RING_PEERS=$peers"
+    add-line $compose_file "      - CONTROLLER_TARGETS=$targets"
+    add-line $compose_file '      - LOGGING_LEVEL=${LOGGING_LEVEL}'
+    add-line $compose_file '      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}'
+    add-line $compose_file "      - HEARTBEAT_INTERVAL_MS=${HEARTBEAT_INTERVAL_MS}"
+    add-line $compose_file "      - HEARTBEAT_TIMEOUT_MS=${HEARTBEAT_TIMEOUT_MS}"
+    add-line $compose_file "      - NODHEARTBEAT_MAX_RETRIES=${HEARTBEAT_MAX_RETRIES}"
+    add-line $compose_file "      - SUSPECT_GRACE_MS=${SUSPECT_GRACE_MS}"
+    add-line $compose_file "      - LEADER_CHECK_INTERVAL_MS=${LEADER_CHECK_INTERVAL_MS}"
+    add-line $compose_file "      - LEADER_CHECK_TIMEOUT_MS=${LEADER_CHECK_TIMEOUT_MS}"
+    add-line $compose_file "      - ELECTION_BACKOFF_MS_MIN=${ELECTION_BACKOFF_MS_MIN}"
+    add-line $compose_file "      - ELECTION_BACKOFF_MS_MAX=${ELECTION_BACKOFF_MS_MAX}"
+    add-line $compose_file "      - LEADER_RANDOM_SLEEP_MIN_MS=${LEADER_RANDOM_SLEEP_MIN_MS}"
+    add-line $compose_file "      - LEADER_RANDOM_SLEEP_MAX_MS=${LEADER_RANDOM_SLEEP_MAX_MS}"
+    add-line $compose_file "      - DOCKER_HOST=${DOCKER_HOST}"                               
+    add-line $compose_file '    networks:'
+    add-line $compose_file '      - custom_net'
+    add-line $compose_file '    depends_on:'
+    add-line $compose_file '      rabbitmq-message-middleware:'
+    add-line $compose_file '        condition: service_healthy'
+  done
+
+}
+
+
 # ============================== PRIVATE - SERVICES ============================== #
 
 function add-services() {
@@ -955,6 +1086,9 @@ function add-services() {
 
   add-comment $compose_file 'OUTPUT BUILDERS SERVICES'
   add-output-builders $compose_file
+
+  add-comment $compose_file 'HEALTH CHECKERS SERVICES'
+  add-health-checkers
 }
 
 # ============================== PRIVATE - NETWORKS ============================== #
