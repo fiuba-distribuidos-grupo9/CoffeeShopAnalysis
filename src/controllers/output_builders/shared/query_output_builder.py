@@ -29,7 +29,7 @@ class QueryOutputBuilder(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._prev_controllers_eof_recv = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
 
         queue_name_prefix = consumers_config["queue_name_prefix"]
@@ -96,7 +96,7 @@ class QueryOutputBuilder(Controller):
                 )
             else:
                 logging.warning(
-                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         logging.info(f"action: load_last_state | result: success | file: {path}")

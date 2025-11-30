@@ -113,7 +113,7 @@ class BaseDataHandler:
                 )
             else:
                 logging.warning(
-                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         logging.info(f"action: load_last_state | result: success | file: {path}")

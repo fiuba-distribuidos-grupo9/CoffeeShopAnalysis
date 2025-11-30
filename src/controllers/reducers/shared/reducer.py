@@ -19,6 +19,7 @@ from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRec
 from shared.file_protocol.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
+from shared.file_protocol.reduced_data_by_session_id import ReducedDataBySessionId
 
 
 class Reducer(Controller):
@@ -38,7 +39,7 @@ class Reducer(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._prev_controllers_eof_recv = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
@@ -118,9 +119,24 @@ class Reducer(Controller):
                 self._prev_controllers_eof_recv = (
                     metadata_section.prev_controllers_eof_recv()
                 )
+            elif isinstance(metadata_section, ReducedDataBySessionId):
+                reduced_data_by_session_id_dict = (
+                    metadata_section.reduced_data_by_session_id()
+                )
+                for (
+                    session_id,
+                    reduced_data_dict,
+                ) in reduced_data_by_session_id_dict.items():
+                    reduced_data = ReducedData(
+                        self._keys(),
+                        self._accumulator_name(),
+                        self._reduce_function,
+                    )
+                    reduced_data.replace(reduced_data_dict)
+                    self._reduced_data_by_session_id[session_id] = reduced_data
             else:
                 logging.warning(
-                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         logging.info(f"action: load_last_state | result: success | file: {path}")
@@ -135,9 +151,17 @@ class Reducer(Controller):
             )
 
     def _save_current_state(self) -> None:
+        reduced_data_by_session_id_dict = {}
+        for session_id, reduced_data in self._reduced_data_by_session_id.items():
+            if reduced_data.is_empty():
+                del self._reduced_data_by_session_id[session_id]
+            else:
+                reduced_data_by_session_id_dict[session_id] = reduced_data.to_dict()
+
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
             PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+            ReducedDataBySessionId(reduced_data_by_session_id_dict),
         ]
         metadata_sections_str = "".join([str(section) for section in metadata_sections])
         self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
@@ -173,8 +197,8 @@ class Reducer(Controller):
     def _reduce_by_keys(self, session_id: str, batch_item: dict[str, str]) -> None:
         self._reduced_data_by_session_id.setdefault(
             session_id,
-            ReducedData(self._keys(), self._accumulator_name()),
-        ).reduce_using(batch_item, self._reduce_function)
+            ReducedData(self._keys(), self._accumulator_name(), self._reduce_function),
+        ).reduce(batch_item)
 
     def _pop_next_batch_item(self, session_id: str) -> dict[str, str]:
         return self._reduced_data_by_session_id[session_id].pop_next_batch_item()

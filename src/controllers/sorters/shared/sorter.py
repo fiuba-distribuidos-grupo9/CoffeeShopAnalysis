@@ -38,7 +38,7 @@ class Sorter(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._prev_controllers_eof_recv = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
@@ -138,7 +138,7 @@ class Sorter(Controller):
                 )
             else:
                 logging.warning(
-                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         logging.info(f"action: load_last_state | result: success | file: {path}")

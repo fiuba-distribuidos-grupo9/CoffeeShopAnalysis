@@ -19,9 +19,7 @@ class PrevControllersEOFRecv(MetadataSection):
         prev_controllers_eof_recv = {}
 
         for line in lines:
-            session_id, booleans_str = line.split(
-                constants.KEY_VALUE_SECTION_SEPARATOR, 1
-            )
+            session_id, booleans_str = line.split(constants.DICT_KEY_SEPARATOR, 1)
             booleans_str = (
                 booleans_str.strip()
                 .lstrip(constants.LIST_START_DELIMITER)
@@ -30,7 +28,7 @@ class PrevControllersEOFRecv(MetadataSection):
 
             booleans = [
                 b_str.strip().lower() == str(True).lower()
-                for b_str in booleans_str.split(constants.LIST_ITEMS_SEPARATOR)
+                for b_str in booleans_str.split(constants.LIST_ITEM_SEPARATOR)
             ]
 
             prev_controllers_eof_recv[session_id] = booleans
@@ -46,11 +44,11 @@ class PrevControllersEOFRecv(MetadataSection):
 
     def _payload_for_file(self) -> str:
         payload = ""
-        for session_id, booleans in self._prev_controllers_eof_recv.items():
+        for session_id, booleans in self.prev_controllers_eof_recv().items():
             payload += session_id
-            payload += constants.KEY_VALUE_SECTION_SEPARATOR
+            payload += constants.DICT_KEY_SEPARATOR
             payload += constants.LIST_START_DELIMITER
-            payload += constants.LIST_ITEMS_SEPARATOR.join(
+            payload += constants.LIST_ITEM_SEPARATOR.join(
                 [str(b).lower() for b in booleans]
             )
             payload += constants.LIST_END_DELIMITER
