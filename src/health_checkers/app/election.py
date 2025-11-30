@@ -40,7 +40,6 @@ class Election:
 
 
     def start_election(self) -> None:
-        """Inicia una elección si no hay otra en curso."""
         with self._lock:
             if self._running:
                 logging.info("action: start_election | result: skipped | reason: election_already_running")

@@ -11,7 +11,7 @@ from .models import Message
 
 @dataclass
 class SocketConfig:
-    """Configuración para un socket UDP."""
+    """UDP Socket config"""
     host: str
     port: int
     timeout_s: float = 1.0
@@ -20,10 +20,8 @@ class SocketConfig:
 
 class SocketManager:
     """
-    Maneja comunicación UDP con retry, timeouts y manejo consistente de errores.
-    Abstrae la complejidad de sockets para facilitar testing y reutilización.
+    Handles socket logic 
     """
-    
     def __init__(self, config: SocketConfig, name: str = "socket"):
         self.config = config
         self.name = name
@@ -33,7 +31,6 @@ class SocketManager:
         self._initialize_socket()
     
     def _initialize_socket(self) -> None:
-        """Inicializa y configura el socket UDP."""
         try:
             self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self._sock.bind((self.config.host, self.config.port))
@@ -51,7 +48,6 @@ class SocketManager:
             raise
     
     def is_valid(self) -> bool:
-        """Verifica si el socket es válido y está abierto."""
         try:
             if self._sock is None:
                 return False
@@ -66,16 +62,6 @@ class SocketManager:
             return False
     
     def send_message(self, msg: Message, target: Tuple[str, int]) -> bool:
-        """
-        Envía un mensaje a un destino específico.
-        
-        Args:
-            msg: Mensaje a enviar
-            target: Tupla (host, port) del destinatario
-            
-        Returns:
-            True si se envió exitosamente, False en caso contrario
-        """
         if not self.is_valid():
             logging.warning(
                 f"action: send_message | result: fail | "
@@ -89,14 +75,14 @@ class SocketManager:
             return True
         except OSError as e:
             errno = getattr(e, "errno", None)
-            if errno == 9:  # Bad file descriptor - socket cerrado
+            if errno == 9:
                 self._closed = True
                 logging.warning(
                     f"action: send_message | result: fail | "
                     f"name: {self.name} | reason: socket_closed"
                 )
                 return False
-            elif errno == -2:  # Name or service not known
+            elif errno == -2:
                 logging.warning(
                     f"action: send_message | result: fail | "
                     f"name: {self.name} | target: {target} | reason: dns_error"
@@ -116,15 +102,6 @@ class SocketManager:
             return False
     
     def receive_message(self, timeout_s: Optional[float] = None) -> Optional[Tuple[Message, Tuple[str, int]]]:
-        """
-        Recibe un mensaje del socket.
-        
-        Args:
-            timeout_s: Timeout específico (None usa el timeout del socket)
-            
-        Returns:
-            Tupla (mensaje, dirección) o None si timeout/error
-        """
         if not self.is_valid():
             return None
         
@@ -169,25 +146,8 @@ class SocketManager:
         timeout_s: float,
         max_retries: int = 1,
         retry_delay_s: float = 1.0,
-        ack_filter: Optional[Callable[[Message], bool]] = None
     ) -> bool:
-        """
-        Envía un mensaje y espera un ACK específico con retry.
-        
-        Args:
-            msg: Mensaje a enviar
-            target: Tupla (host, port) del destinatario
-            expected_ack_kind: Tipo de mensaje ACK esperado
-            timeout_s: Timeout para esperar el ACK
-            max_retries: Número máximo de intentos
-            retry_delay_s: Delay entre reintentos
-            ack_filter: Función opcional para filtrar ACKs válidos
-            
-        Returns:
-            True si recibió el ACK esperado, False en caso contrario
-        """
         for attempt in range(1, max_retries + 1):
-            # Enviar mensaje
             if not self.send_message(msg, target):
                 if attempt < max_retries:
                     logging.info(
@@ -198,27 +158,23 @@ class SocketManager:
                     continue
                 return False
             
-            # Esperar ACK
             start = time.monotonic()
             while time.monotonic() - start < timeout_s:
                 result = self.receive_message(timeout_s=timeout_s)
                 
                 if result is None:
-                    break  # Timeout o error
+                    break  
                 
                 ack_msg, ack_addr = result
                 
                 if ack_msg.kind == expected_ack_kind:
-                    # Aplicar filtro adicional si existe
-                    if ack_filter is None or ack_filter(ack_msg):
-                        logging.info(
-                            f"action: send_with_ack | result: success | "
-                            f"name: {self.name} | ack_kind: {expected_ack_kind} | "
-                            f"attempt: {attempt}/{max_retries}"
-                        )
-                        return True
+                    logging.info(
+                        f"action: send_with_ack | result: success | "
+                        f"name: {self.name} | ack_kind: {expected_ack_kind} | "
+                        f"attempt: {attempt}/{max_retries}"
+                    )
+                    return True
             
-            # No recibió ACK válido en este intento
             if attempt < max_retries:
                 logging.info(
                     f"action: send_with_ack | status: no_ack | "
@@ -234,15 +190,6 @@ class SocketManager:
         return False
     
     def set_timeout(self, timeout_s: float) -> bool:
-        """
-        Cambia el timeout del socket.
-        
-        Args:
-            timeout_s: Nuevo timeout en segundos
-            
-        Returns:
-            True si se cambió exitosamente, False en caso contrario
-        """
         if not self.is_valid():
             return False
         
@@ -258,7 +205,6 @@ class SocketManager:
             return False
     
     def close(self) -> None:
-        """Cierra el socket de forma segura."""
         if self._closed or self._sock is None:
             return
         
@@ -286,10 +232,8 @@ class SocketManager:
             )
     
     def __enter__(self):
-        """Context manager support."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager support."""
         self.close()
         return False

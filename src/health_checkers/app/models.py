@@ -106,12 +106,10 @@ class Message:
         }
 
     def to_json(self) -> str:
-        """Serializa el mensaje a JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str: str) -> Message:
-        """Deserializa desde JSON string."""
         data = json.loads(json_str)
         return cls(
             kind=str(data["kind"]),
@@ -123,7 +121,6 @@ class Message:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> Message:
-        """Crea un Message desde un diccionario."""
         return cls(
             kind=str(data["kind"]),
             src_id=int(data["src_id"]),

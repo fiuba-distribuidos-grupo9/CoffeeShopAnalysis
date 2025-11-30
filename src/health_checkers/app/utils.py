@@ -14,11 +14,6 @@ def extract_id_from_hostname(hostname: str) -> int:
 
 
 def parse_peers(peers_env: str, current_node_id: int, port) -> List[Peer]:
-    """
-    Expected format: host_0,host_1,...,host_N
-    host = name_id 
-    Example --> hc_0,hc_1,...,hc_N
-    """
     peers: List[Peer] = []
     if not peers_env:
         return peers
