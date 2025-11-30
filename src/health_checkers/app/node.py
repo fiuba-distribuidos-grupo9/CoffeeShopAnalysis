@@ -167,7 +167,7 @@ class Node:
         
         if leader_id == self.cfg.node_id:
             return (self.cfg.listen_host, self.cfg.health_listen_port)
-        
+
         for target in self.cfg.controller_targets:
             try:
                 if "hc" not in target.name:
@@ -371,6 +371,10 @@ class Node:
         kind = msg.kind
         
         if kind == "heartbeat":
+            if (self.election._leader_id != msg.src_id):
+                with self._lock:
+                    self.election.set_leader(msg.src_id)
+            
             ack = Message(
                 kind="heartbeat_ack",
                 src_id=self.cfg.node_id,

@@ -59,7 +59,8 @@ def _smart_election_start(node: Node, cfg) -> None:
         
         if not _shutdown_event.is_set():
             try:
-                node.election.start_election()
+                if node.cfg.node_id == 0:
+                    node.election.start_election()
             except Exception as e:
                 logging.error(f"action: first_election | result: fail | error: {e}")
     else:

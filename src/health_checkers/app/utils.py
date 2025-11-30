@@ -13,11 +13,11 @@ def extract_id_from_hostname(hostname: str) -> int:
     raise ValueError(f"No ID in hostname")
 
 
-def parse_peers(peers_env: str, current_node_id: int) -> List[Peer]:
+def parse_peers(peers_env: str, current_node_id: int, port) -> List[Peer]:
     """
-    Expected format: host:port,host:port,...
+    Expected format: host_0,host_1,...,host_N
     host = name_id 
-    Example --> hc_1:9101,hc_2:9101
+    Example --> hc_0,hc_1,...,hc_N
     """
     peers: List[Peer] = []
     if not peers_env:
@@ -27,7 +27,7 @@ def parse_peers(peers_env: str, current_node_id: int) -> List[Peer]:
         if not item: 
             continue
 
-        host, port = item.split(":",1)
+        host = item
         try:
             peer_id = extract_id_from_hostname(host)
         except ValueError as e:
@@ -45,35 +45,26 @@ def parse_peers(peers_env: str, current_node_id: int) -> List[Peer]:
     return peers
 
 
-def parse_controller_targets(targets_env: str) -> List[ControllerTarget]:
-    """
-    Expected format: host:port,host2:port2,
-    Example: hc_1:9201,hc_2:9201
-    """
+def parse_controller_targets(targets_env: str, peers: List[Peer], port: int) -> List[ControllerTarget]:
     targets: List[ControllerTarget] = []
-    if not targets_env:
-        return targets
     
+    for peer in peers:
+        targets.append(ControllerTarget(
+            name=peer.name,
+            host=peer.name,
+            port=port,
+            container_name=peer.name))
+
     for item in targets_env.split(","):
         item = item.strip()
         if not item:
             continue
-
-        parts = item.split(":",1)
-        
-        if len(parts) != 2:
-            continue
             
-        host, port = parts
+        host = item
         host = host.strip()
-        try:
-            target_id = extract_id_from_hostname(host)
-            name = host
-        except ValueError:
-            name = host
 
         targets.append(ControllerTarget(
-            name=name,
+            name=host,
             host=host,
             port=int(port),
             container_name=host
@@ -86,15 +77,20 @@ def load_config_from_env() -> Config:
     node_id = int(os.getenv("NODE_ID", "1"))
     node_name = os.getenv("NODE_NAME", f"hc_{node_id}")
     
-    peers = parse_peers(os.getenv("RING_PEERS", ""), node_id)
-    controller_targets = parse_controller_targets(os.getenv("CONTROLLER_TARGETS", ""))
+    ring_peers = os.getenv("RING_PEERS", "")
+    targets = os.getenv("CONTROLLER_TARGETS", "")
+    election_port = int(os.getenv("LISTEN_PORT","9101"))
+    health_port = int(os.getenv("HEALTH_LISTEN_PORT", "9201"))
+
+    peers = parse_peers(ring_peers, node_id, election_port)
+    controller_targets = parse_controller_targets(targets, peers, health_port)
     
     cfg = Config(
         node_id=node_id,
         node_name=node_name,
         listen_host=os.getenv("LISTEN_HOST", "0.0.0.0"),
-        listen_port=int(os.getenv("LISTEN_PORT", "9101")),
-        health_listen_port=int(os.getenv("HEALTH_LISTEN_PORT", "9201")),
+        listen_port=election_port,
+        health_listen_port=health_port,
         peers=peers,
         controller_targets=controller_targets,
 
