@@ -33,7 +33,6 @@ logs3:
 logs4:
 	@docker compose -f $(COMPOSE_FILE) logs -f hc_4
 
-
 stop0:
 	@docker kill hc_0
 
@@ -48,4 +47,3 @@ stop3:
 
 stop4:
 	@docker kill hc_4
-

@@ -1,14 +1,13 @@
+# Imports.
 from __future__ import annotations
-
 import logging
 import socket
 import time
 from typing import Optional, Callable, Tuple
 from dataclasses import dataclass
-
 from .models import Message
 
-
+# Dataclass for socket configuration.
 @dataclass
 class SocketConfig:
     """UDP Socket config"""
@@ -17,7 +16,7 @@ class SocketConfig:
     timeout_s: float = 1.0
     buffer_size: int = 64 * 1024
 
-
+# SocketManager class.
 class SocketManager:
     """
     Handles socket logic 
@@ -27,7 +26,6 @@ class SocketManager:
         self.name = name
         self._sock: Optional[socket.socket] = None
         self._closed = False
-        
         self._initialize_socket()
     
     def _initialize_socket(self) -> None:
@@ -67,6 +65,7 @@ class SocketManager:
                 f"action: send_message | result: fail | "
                 f"name: {self.name} | reason: invalid_socket"
             )
+
             return False
         
         try:
@@ -81,24 +80,28 @@ class SocketManager:
                     f"action: send_message | result: fail | "
                     f"name: {self.name} | reason: socket_closed"
                 )
+
                 return False
             elif errno == -2:
                 logging.warning(
                     f"action: send_message | result: fail | "
                     f"name: {self.name} | target: {target} | reason: dns_error"
                 )
+
                 return False
             else:
                 logging.error(
                     f"action: send_message | result: fail | "
                     f"name: {self.name} | target: {target} | error: {e}"
                 )
+
                 return False
         except Exception as e:
             logging.error(
                 f"action: send_message | result: fail | "
                 f"name: {self.name} | target: {target} | error: {e}"
             )
+
             return False
     
     def receive_message(self, timeout_s: Optional[float] = None) -> Optional[Tuple[Message, Tuple[str, int]]]:
@@ -124,12 +127,14 @@ class SocketManager:
         except OSError as e:
             if getattr(e, "errno", None) == 9:
                 self._closed = True
+
             return None
         except Exception as e:
             logging.error(
                 f"action: receive_message | result: fail | "
                 f"name: {self.name} | error: {e}"
             )
+
             return None
         finally:
             if original_timeout is not None:
@@ -154,25 +159,26 @@ class SocketManager:
                         f"action: send_with_ack | status: retrying | "
                         f"name: {self.name} | attempt: {attempt}/{max_retries}"
                     )
+
                     time.sleep(retry_delay_s)
                     continue
+
                 return False
             
             start = time.monotonic()
             while time.monotonic() - start < timeout_s:
                 result = self.receive_message(timeout_s=timeout_s)
-                
                 if result is None:
                     break  
                 
                 ack_msg, ack_addr = result
-                
                 if ack_msg.kind == expected_ack_kind:
                     logging.info(
                         f"action: send_with_ack | result: success | "
                         f"name: {self.name} | ack_kind: {expected_ack_kind} | "
                         f"attempt: {attempt}/{max_retries}"
                     )
+
                     return True
             
             if attempt < max_retries:
@@ -180,6 +186,7 @@ class SocketManager:
                     f"action: send_with_ack | status: no_ack | "
                     f"name: {self.name} | retrying: {attempt}/{max_retries}"
                 )
+
                 time.sleep(retry_delay_s)
         
         logging.warning(
@@ -187,6 +194,7 @@ class SocketManager:
             f"name: {self.name} | ack_kind: {expected_ack_kind} | "
             f"attempts_exhausted: {max_retries}"
         )
+
         return False
     
     def set_timeout(self, timeout_s: float) -> bool:
@@ -218,6 +226,7 @@ class SocketManager:
                     self._sock.close()
                 except Exception:
                     pass
+                    
             self._closed = True
             logging.info(f"action: close_socket | result: success | name: {self.name}")
         except Exception as e:

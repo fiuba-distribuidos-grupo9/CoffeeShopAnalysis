@@ -1,8 +1,10 @@
+# Imports.
 from __future__ import annotations
 from typing import Optional
 import docker
 import logging
 
+# DockerReviver class to manage Docker containers.
 class DockerReviver:
     def __init__(self, docker_host: Optional[str] = None):
         self.client = docker.from_env()

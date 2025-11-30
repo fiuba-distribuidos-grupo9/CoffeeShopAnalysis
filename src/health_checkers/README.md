@@ -68,21 +68,17 @@ make down
 
 ```
 
-### 🐳 Ver logs en una ùnica consola
+### 🐳 Ver logs
 
 ```bash
 
-make logs
+make logs$NUMERO_DE_HC
 
 ```
 
-### 🐳 Ver logs de cada nodo
+#### Ejemplo
 
 ```bash
-
-make logs1
-
-make logs2
 
 make logs3
 
@@ -92,9 +88,13 @@ make logs3
 
 ```bash
 
-make stop1
+make stop$NUMERO_DE_HC
 
-make stop2
+```
+
+#### Ejemplo
+
+```bash
 
 make stop3
 

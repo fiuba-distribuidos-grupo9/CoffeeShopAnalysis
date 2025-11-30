@@ -8,12 +8,12 @@ docker network create "$NETWORK_NAME" 2>/dev/null || true
 
 for c in hc_container_1 hc_container_2 hc_container_3 hc_container_4 hc_container_5; do
   if docker ps -a --format '{{.Names}}' | grep -q "^${c}$"; then
-    echo "Eliminando contenedor existente: $c"
+    echo "Deleting existing container: $c"
     docker rm -f "$c" >/dev/null 2>&1 || true
   fi
 done
 
-echo "Levantando contenedores del ring..."
+echo "Starting containers from the ring..."
 
 docker run -d --name hc_container_1 --network "$NETWORK_NAME" \
   -v /var/run/docker.sock:/var/run/docker.sock \
@@ -100,6 +100,6 @@ docker run -d --name hc_container_5 --network "$NETWORK_NAME" \
   -e ELECTION_BACKOFF_MS_MAX=900 \
   -e MODE=auto "$IMAGE_NAME"
 
-echo "Todos los health checkers levantados."
+echo "All health checkers up."
 
 exit 0
