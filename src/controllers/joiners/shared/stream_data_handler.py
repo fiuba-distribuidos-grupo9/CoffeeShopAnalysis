@@ -181,12 +181,14 @@ class StreamDataHandler:
         stream_value = self._transform_function(stream_optional_value)
         return base_value == stream_value  # type: ignore
 
-    def _join_with_base_data(self, message: BatchMessage) -> BatchMessage:
+    def _join_with_base_data(self, stream_message: BatchMessage) -> BatchMessage:
         joined_batch_items: list[dict[str, str]] = []
-        for stream_batch_item in message.batch_items():
+        for stream_batch_item in stream_message.batch_items():
             was_joined = False
-            for message in self._base_data_by_session_id.get(message.session_id(), []):
-                for base_batch_item in message.batch_items():
+            for base_messages in self._base_data_by_session_id.get(
+                stream_message.session_id(), []
+            ):
+                for base_batch_item in base_messages.batch_items():
                     if self._should_be_joined(base_batch_item, stream_batch_item):
                         joined_batch_item = {**stream_batch_item, **base_batch_item}
                         joined_batch_items.append(joined_batch_item)
@@ -196,8 +198,8 @@ class StreamDataHandler:
                 self._log_warning(
                     f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
                 )
-        message.update_batch_items(joined_batch_items)
-        return message
+        stream_message.update_batch_items(joined_batch_items)
+        return stream_message
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
