@@ -6,9 +6,11 @@ from typing import Any, Optional
 from controllers.shared.controller import Controller
 from middleware.middleware import MessageMiddleware
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.duplicate_message_checker import (
+    DuplicateMessageChecker,
+)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
-from shared.duplicate_message_checker import DuplicateMessageChecker
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
 from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
@@ -72,32 +74,31 @@ class Filter(Controller):
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
     def _load_last_state(self) -> None:
-        metadata_sections = self._metadata_reader.read_from(self._metadata_file_name)
-        for section in metadata_sections:
+        path = self._metadata_file_name
+        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+
+        metadata_sections = self._metadata_reader.read_from(path)
+        for metadata_section in metadata_sections:
             # @TODO: visitor pattern can be used here
-            if isinstance(section, PrevControllersLastMessage):
+            if isinstance(metadata_section, PrevControllersLastMessage):
                 self._prev_controllers_last_message = (
-                    section.prev_controllers_last_message()
+                    metadata_section.prev_controllers_last_message()
                 )
-            elif isinstance(section, PrevControllersEOFRecv):
-                self._prev_controllers_eof_recv = section.prev_controllers_eof_recv()
+            elif isinstance(metadata_section, PrevControllersEOFRecv):
+                self._prev_controllers_eof_recv = (
+                    metadata_section.prev_controllers_eof_recv()
+                )
             else:
                 logging.warning(
-                    f"action: unknown_metadata_section | result: warning | section: {section}"
+                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
                 )
+
+        logging.info(f"action: load_last_state | result: success | file: {path}")
 
     def _load_last_state_if_exists(self) -> None:
         path = self._metadata_file_name
         if path.exists() and path.is_file():
-            logging.info(
-                f"action: load_last_state | result: in_progress | file: {path}"
-            )
-
             self._load_last_state()
-
-            logging.info(
-                f"action: load_last_state | result: success | file: {path}",
-            )
         else:
             logging.info(
                 f"action: load_last_state_skipped | result: success | file: {path}"

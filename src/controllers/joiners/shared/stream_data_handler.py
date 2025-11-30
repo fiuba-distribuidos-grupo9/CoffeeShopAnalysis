@@ -1,13 +1,22 @@
 import logging
 import threading
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.duplicate_message_checker import (
+    DuplicateMessageChecker,
+)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
-from shared.duplicate_message_checker import DuplicateMessageChecker
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.prev_controllers_last_message import (
+    PrevControllersLastMessage,
+)
 from shared.simple_hash import simple_hash
 
 
@@ -20,7 +29,7 @@ class StreamDataHandler:
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._prev_controllers_eof_recv: dict[str, int] = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config[
             "stream_data_prev_controllers_amount"
         ]
@@ -83,6 +92,10 @@ class StreamDataHandler:
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
+        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_reader = MetadataReader()
+        self._atomic_writer = AtomicWriter()
+
     # ============================== PRIVATE - LOGGING ============================== #
 
     def _log_debug(self, text: str) -> None:
@@ -115,11 +128,44 @@ class StreamDataHandler:
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
+    def _load_last_state(self) -> None:
+        path = self._metadata_file_name
+        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+
+        metadata_sections = self._metadata_reader.read_from(path)
+        for metadata_section in metadata_sections:
+            # @TODO: visitor pattern can be used here
+            if isinstance(metadata_section, PrevControllersLastMessage):
+                self._prev_controllers_last_message = (
+                    metadata_section.prev_controllers_last_message()
+                )
+            elif isinstance(metadata_section, PrevControllersEOFRecv):
+                self._prev_controllers_eof_recv = (
+                    metadata_section.prev_controllers_eof_recv()
+                )
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                )
+
+        logging.info(f"action: load_last_state | result: success | file: {path}")
+
     def _load_last_state_if_exists(self) -> None:
-        pass
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            self._load_last_state()
+        else:
+            logging.info(
+                f"action: load_last_state_skipped | result: success | file: {path}"
+            )
 
     def _save_current_state(self) -> None:
-        pass
+        metadata_sections = [
+            PrevControllersLastMessage(self._prev_controllers_last_message),
+            PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+        ]
+        metadata_sections_str = "".join([str(section) for section in metadata_sections])
+        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
 
     # ============================== PRIVATE - JOIN ============================== #
 
@@ -215,13 +261,16 @@ class StreamDataHandler:
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._prev_controllers_eof_recv.setdefault(session_id, 0)
-        self._prev_controllers_eof_recv[session_id] += 1
+        prev_controller_id = message.controller_id()
+        self._prev_controllers_eof_recv.setdefault(
+            session_id, [False for _ in range(self._prev_controllers_amount)]
+        )
+        self._prev_controllers_eof_recv[session_id][int(prev_controller_id)] = True
         self._log_debug(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if self._prev_controllers_eof_recv[session_id] == self._prev_controllers_amount:
+        if all(self._prev_controllers_eof_recv[session_id]):
             with self._all_base_data_received_lock:
                 all_base_data_received = self._all_base_data_received.get(
                     session_id, False
@@ -242,12 +291,13 @@ class StreamDataHandler:
 
                 self._clean_session_data_of(session_id)
             else:
-                # @TODO: this can be improved
-                # requeue the EOF message to be processed later
                 self._log_debug(
                     f"action: all_eofs_received_before_base_data | result: success | session_id: {session_id}"
                 )
-                self._prev_controllers_eof_recv[session_id] -= 1
+                # Requeue the EOF message until all base data is received
+                self._prev_controllers_eof_recv[session_id][
+                    int(prev_controller_id)
+                ] = False
                 self._mom_consumer.send(str(message))
 
     def _handle_stream_data(self, message_as_bytes: bytes) -> None:

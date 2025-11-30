@@ -1,15 +1,24 @@
 import logging
 import uuid
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Optional
 
 from controllers.shared.controller import Controller
 from controllers.sorters.shared.sorted_desc_data import SortedDescData
 from middleware.middleware import MessageMiddleware
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.duplicate_message_checker import (
+    DuplicateMessageChecker,
+)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
-from shared.duplicate_message_checker import DuplicateMessageChecker
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.prev_controllers_last_message import (
+    PrevControllersLastMessage,
+)
 
 
 class Sorter(Controller):
@@ -82,6 +91,10 @@ class Sorter(Controller):
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
+        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_reader = MetadataReader()
+        self._atomic_writer = AtomicWriter()
+
     # ============================== PRIVATE - ACCESSING ============================== #
 
     @abstractmethod
@@ -108,11 +121,44 @@ class Sorter(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
+    def _load_last_state(self) -> None:
+        path = self._metadata_file_name
+        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+
+        metadata_sections = self._metadata_reader.read_from(path)
+        for metadata_section in metadata_sections:
+            # @TODO: visitor pattern can be used here
+            if isinstance(metadata_section, PrevControllersLastMessage):
+                self._prev_controllers_last_message = (
+                    metadata_section.prev_controllers_last_message()
+                )
+            elif isinstance(metadata_section, PrevControllersEOFRecv):
+                self._prev_controllers_eof_recv = (
+                    metadata_section.prev_controllers_eof_recv()
+                )
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: warning | section: {metadata_section}"
+                )
+
+        logging.info(f"action: load_last_state | result: success | file: {path}")
+
     def _load_last_state_if_exists(self) -> None:
-        pass
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            self._load_last_state()
+        else:
+            logging.info(
+                f"action: load_last_state_skipped | result: success | file: {path}"
+            )
 
     def _save_current_state(self) -> None:
-        pass
+        metadata_sections = [
+            PrevControllersLastMessage(self._prev_controllers_last_message),
+            PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+        ]
+        metadata_sections_str = "".join([str(section) for section in metadata_sections])
+        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -216,13 +262,16 @@ class Sorter(Controller):
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        self._prev_controllers_eof_recv.setdefault(session_id, 0)
-        self._prev_controllers_eof_recv[session_id] += 1
+        prev_controller_id = message.controller_id()
+        self._prev_controllers_eof_recv.setdefault(
+            session_id, [False for _ in range(self._prev_controllers_amount)]
+        )
+        self._prev_controllers_eof_recv[session_id][int(prev_controller_id)] = True
         logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if self._prev_controllers_eof_recv[session_id] == self._prev_controllers_amount:
+        if all(self._prev_controllers_eof_recv[session_id]):
             logging.info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
