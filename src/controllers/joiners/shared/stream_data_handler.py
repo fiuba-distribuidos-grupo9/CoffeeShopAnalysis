@@ -51,7 +51,7 @@ class StreamDataHandler:
         producers_config: dict[str, Any],
         build_mom_consumer: Callable,
         build_mom_producer: Callable,
-        base_data_by_session_id: dict[str, list[dict[str, Any]]],
+        base_data_by_session_id: dict[str, list[BatchMessage]],
         base_data_by_session_id_lock: Any,
         all_base_data_received: dict[str, bool],
         all_base_data_received_lock: Any,
@@ -115,7 +115,7 @@ class StreamDataHandler:
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _start_from_last_state(self) -> None:
+    def _load_last_state_if_exists(self) -> None:
         pass
 
     def _save_current_state(self) -> None:
@@ -139,12 +139,13 @@ class StreamDataHandler:
         joined_batch_items: list[dict[str, str]] = []
         for stream_batch_item in message.batch_items():
             was_joined = False
-            for base_batch_item in self._base_data_by_session_id[message.session_id()]:
-                if self._should_be_joined(base_batch_item, stream_batch_item):
-                    joined_batch_item = {**stream_batch_item, **base_batch_item}
-                    joined_batch_items.append(joined_batch_item)
-                    was_joined = True
-                    break
+            for message in self._base_data_by_session_id.get(message.session_id(), []):
+                for base_batch_item in message.batch_items():
+                    if self._should_be_joined(base_batch_item, stream_batch_item):
+                        joined_batch_item = {**stream_batch_item, **base_batch_item}
+                        joined_batch_items.append(joined_batch_item)
+                        was_joined = True
+                        break
             if not was_joined:
                 self._log_warning(
                     f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
@@ -267,7 +268,7 @@ class StreamDataHandler:
 
     def _run(self) -> None:
         self._log_info(f"action: handler_running | result: success")
-        self._start_from_last_state()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_stream_data)
 
     def _close_all(self) -> None:

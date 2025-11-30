@@ -1,5 +1,6 @@
 import logging
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Optional
 
 from controllers.shared.controller import Controller
@@ -8,6 +9,11 @@ from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.duplicate_message_checker import DuplicateMessageChecker
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.prev_controllers_last_message import (
+    PrevControllersLastMessage,
+)
 
 
 class Cleaner(Controller):
@@ -39,8 +45,13 @@ class Cleaner(Controller):
             producers_config,
         )
 
+        self._atomic_writer = AtomicWriter()
+
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
+
+        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_reader = MetadataReader()
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -56,11 +67,42 @@ class Cleaner(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _start_from_last_state(self) -> None:
-        pass
+    def _load_last_state(self) -> None:
+        metadata_sections = self._metadata_reader.read_from(self._metadata_file_name)
+        for section in metadata_sections:
+            # @TODO: visitor pattern can be used here
+            if isinstance(section, PrevControllersLastMessage):
+                self._prev_controllers_last_message = (
+                    section.prev_controllers_last_message()
+                )
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: warning | section: {section}"
+                )
+
+    def _load_last_state_if_exists(self) -> None:
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            logging.info(
+                f"action: load_last_state | result: in_progress | file: {path}"
+            )
+
+            self._load_last_state()
+
+            logging.info(
+                f"action: load_last_state | result: success | file: {path}",
+            )
+        else:
+            logging.info(
+                f"action: load_last_state_skipped | result: success | file: {path}"
+            )
 
     def _save_current_state(self) -> None:
-        pass
+        metadata_sections = [
+            PrevControllersLastMessage(self._prev_controllers_last_message)
+        ]
+        for metadata_section in metadata_sections:
+            self._atomic_writer.write(self._metadata_file_name, str(metadata_section))
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -132,6 +174,7 @@ class Cleaner(Controller):
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
+            # @TODO: visitor pattern can be used here
             if isinstance(message, BatchMessage):
                 self._handle_data_batch_message(message)
             elif isinstance(message, EOFMessage):
@@ -146,7 +189,7 @@ class Cleaner(Controller):
 
     def _run(self) -> None:
         super()._run()
-        self._start_from_last_state()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
     @abstractmethod

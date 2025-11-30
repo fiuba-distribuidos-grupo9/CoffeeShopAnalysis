@@ -33,7 +33,7 @@ class BaseDataHandler:
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
         build_mom_consumer: Callable,
-        base_data_by_session_id: dict[str, list[dict[str, Any]]],
+        base_data_by_session_id: dict[str, list[BatchMessage]],
         base_data_by_session_id_lock: Any,
         all_base_data_received: dict[str, bool],
         all_base_data_received_lock: Any,
@@ -83,7 +83,7 @@ class BaseDataHandler:
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _start_from_last_state(self) -> None:
+    def _load_last_state_if_exists(self) -> None:
         pass
 
     def _save_current_state(self) -> None:
@@ -96,10 +96,9 @@ class BaseDataHandler:
 
     def _handle_base_data_batch_message(self, message: BatchMessage) -> None:
         session_id = message.session_id()
-        for batch_item in message.batch_items():
-            with self._base_data_by_session_id_lock:
-                self._base_data_by_session_id.setdefault(session_id, [])
-                self._base_data_by_session_id[session_id].append(batch_item)
+        with self._base_data_by_session_id_lock:
+            self._base_data_by_session_id.setdefault(session_id, [])
+            self._base_data_by_session_id[session_id].append(message)
 
     def _clean_session_data_of(self, session_id: str) -> None:
         logging.info(
@@ -154,7 +153,7 @@ class BaseDataHandler:
 
     def _run(self) -> None:
         self._log_info(f"action: handler_running | result: success")
-        self._start_from_last_state()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_base_data)
 
     def _close_all(self) -> None:

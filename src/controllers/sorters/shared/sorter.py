@@ -108,7 +108,7 @@ class Sorter(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _start_from_last_state(self) -> None:
+    def _load_last_state_if_exists(self) -> None:
         pass
 
     def _save_current_state(self) -> None:
@@ -261,7 +261,7 @@ class Sorter(Controller):
 
     def _run(self) -> None:
         super()._run()
-        self._start_from_last_state()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
     def _close_all(self) -> None:

@@ -12,7 +12,7 @@ class ReducedData:
         self._logging_counter = 0
 
     def _logging_warning_when_count_reached(self) -> None:
-        if self._logging_counter >= 1000:
+        if self._logging_counter >= 100:
             logging.warning(
                 f"action: empty_key_in_batch_item | result: skipped | total: {self._logging_counter}"
             )

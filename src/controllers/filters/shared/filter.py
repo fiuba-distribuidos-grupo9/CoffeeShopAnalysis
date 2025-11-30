@@ -27,7 +27,7 @@ class Filter(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers = {}
+        self._eof_recv_from_prev_controllers: dict[str, int] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
@@ -60,7 +60,7 @@ class Filter(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _start_from_last_state(self) -> None:
+    def _load_last_state_if_exists(self) -> None:
         pass
 
     def _save_current_state(self) -> None:
@@ -161,7 +161,7 @@ class Filter(Controller):
 
     def _run(self) -> None:
         super()._run()
-        self._start_from_last_state()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
     @abstractmethod
