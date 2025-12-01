@@ -121,6 +121,7 @@ function add-server-service() {
   add-line $compose_file "      - Q22_OB_AMOUNT=$Q22_OB_AMOUNT"
   add-line $compose_file "      - Q3X_OB_AMOUNT=$Q3X_OB_AMOUNT"
   add-line $compose_file "      - Q4X_OB_AMOUNT=$Q4X_OB_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -150,6 +151,7 @@ function add-menu-cleaner() {
   add-line $compose_file '      - CONTROLLER_ID=0'
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -175,6 +177,7 @@ function add-stores-cleaner() {
     greater_join_amount=$Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT
   fi
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$greater_join_amount"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -195,6 +198,7 @@ function add-transaction-items-cleaner() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$FILTER_TRANSACTION_ITEMS_BY_YEAR_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -215,6 +219,7 @@ function add-transactions-cleaner() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_YEAR_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"  
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -235,6 +240,7 @@ function add-users-cleaner() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_USERS_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"  
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -284,6 +290,7 @@ function add-transactions-filter-by-year() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$TRANSACTIONS_CLN_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_HOUR_AMOUNT"
   add-line $compose_file "      - YEARS_TO_KEEP=$YEARS_TO_KEEP"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -307,6 +314,7 @@ function add-transactions-filter-by-hour() {
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_FINAL_AMNT_AMOUNT"
   add-line $compose_file "      - MIN_HOUR=$MIN_HOUR"
   add-line $compose_file "      - MAX_HOUR=$MAX_HOUR"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -329,6 +337,7 @@ function add-transactions-filter-by-amount() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_HOUR_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q1X_OB_AMOUNT"
   add-line $compose_file "      - MIN_FINAL_AMOUNT=$MIN_FINAL_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -351,6 +360,7 @@ function add-transaction-items-filter-by-year() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$TRANSACTION_ITEMS_CLN_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$YEAR_MONTH_CREATED_AT_TRANSACTION_ITEMS_MAPPERS_AMOUNT"
   add-line $compose_file "      - YEARS_TO_KEEP=$YEARS_TO_KEEP"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -398,6 +408,7 @@ function add-year-month-created-at-mapper() {
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$FILTER_TRANSACTION_ITEMS_BY_YEAR_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_REDUCERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -419,6 +430,7 @@ function add-year-half-created-at-mapper() {
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_HOUR_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q3_REDUCERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -457,6 +469,7 @@ function add-selling-qty-reducer() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$YEAR_MONTH_CREATED_AT_TRANSACTION_ITEMS_MAPPERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_SORTERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -479,6 +492,7 @@ function add-profit-sum-reducer() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$YEAR_MONTH_CREATED_AT_TRANSACTION_ITEMS_MAPPERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_SORTERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -501,6 +515,7 @@ function add-tpv-by-store-reducer() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$YEAR_HALF_CREATED_AT_TRANSACTIONS_MAPPERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q3_JOINERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -523,6 +538,7 @@ function add-user-purchase-by-store-reducer() {
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_YEAR_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_SORTERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -572,6 +588,7 @@ function add-selling-qty-sorter(){
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_JOINERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
   add-line $compose_file '      - AMOUNT_PER_GROUP=1'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -595,6 +612,7 @@ function add-profit-sum-sorter(){
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q2_JOINERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
   add-line $compose_file '      - AMOUNT_PER_GROUP=1'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -618,6 +636,7 @@ function add-user-purchase-by-store-sorter(){
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_USERS_JOINERS_AMOUNT"
   add-line $compose_file '      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}'
   add-line $compose_file '      - AMOUNT_PER_GROUP=3'
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -661,6 +680,7 @@ function add-menu-with-items-q21-joiner(){
   add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1'
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q2_SORTERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q21_OB_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -683,6 +703,7 @@ function add-menu-with-items-q22-joiner(){
   add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1'
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q2_SORTERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q22_OB_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -706,6 +727,7 @@ function add-transactions-with-stores-q3x-joiner(){
   add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1' 
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q3_REDUCERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q3X_OB_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -728,6 +750,7 @@ function add-transactions-with-stores-q4x-joiner(){
   add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1' 
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_USERS_JOINERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4X_OB_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -750,6 +773,7 @@ function add-transactions-with-users-q4x-joiner(){
   add-line $compose_file "      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=$USERS_CLN_AMOUNT"
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_REDUCERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -801,6 +825,7 @@ function add-query-1x-output-builder() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$FILTER_TRANSACTIONS_BY_FINAL_AMNT_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -821,6 +846,7 @@ function add-query-21-output-builder() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$Q2_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -841,6 +867,7 @@ function add-query-22-output-builder() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$Q2_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -861,6 +888,7 @@ function add-query-3x-output-builder() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$Q3_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'
@@ -881,6 +909,7 @@ function add-query-4x-output-builder() {
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - PREV_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT"
+  add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'
   add-line $compose_file '    depends_on:'

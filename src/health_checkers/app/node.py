@@ -455,7 +455,6 @@ class Node:
         if leader_info is None:
             with self._leader_check_lock:
                 self._leader_check_failures = 0
-            self.election.start_election()
             return
         
         host, port = leader_info
