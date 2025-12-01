@@ -66,9 +66,10 @@ class BaseDataHandler:
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
-        self._metadata_file_name = Path("base_metadata.txt")
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
+
+        self._metadata_file_name = Path("base_metadata.txt")
 
         self._base_data_dir = Path("base_data")
         self._base_data_dir.mkdir(parents=True, exist_ok=True)
@@ -169,12 +170,9 @@ class BaseDataHandler:
 
     def _save_base_data_section(self, session_id: str) -> None:
         with self._base_data_by_session_id_lock:
-            base_data_section = SessionBatchMessages(
-                self._base_data_by_session_id[session_id]
-            )
             self._atomic_writer.write(
                 self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt",
-                str(base_data_section),
+                str(SessionBatchMessages(self._base_data_by_session_id[session_id])),
             )
 
     def _save_current_state(self, message: Message) -> None:

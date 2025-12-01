@@ -59,9 +59,10 @@ class Mapper(Controller):
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
-        self._metadata_file_name = Path("metadata.txt")
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
+
+        self._metadata_file_name = Path("metadata.txt")
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
