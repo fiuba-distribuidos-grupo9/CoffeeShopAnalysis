@@ -19,6 +19,9 @@ from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRec
 from shared.file_protocol.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
+from shared.file_protocol.sorted_desc_data_by_session_id import (
+    SortedDescDataBySessionId,
+)
 
 
 class Sorter(Controller):
@@ -136,6 +139,19 @@ class Sorter(Controller):
                 self._prev_controllers_eof_recv = (
                     metadata_section.prev_controllers_eof_recv()
                 )
+            elif isinstance(metadata_section, SortedDescDataBySessionId):
+                for (
+                    session_id,
+                    sorted_desc_data_dict,
+                ) in metadata_section.sorted_desc_data_by_session_id().items():
+                    sorted_desc_data = SortedDescData(
+                        self._grouping_key(),
+                        self._primary_sort_key(),
+                        self._secondary_sort_key(),
+                        self._amount_per_group,
+                    )
+                    sorted_desc_data.replace(sorted_desc_data_dict)
+                    self._sorted_desc_data_by_session_id[session_id] = sorted_desc_data
             else:
                 logging.warning(
                     f"action: unknown_metadata_section | result: error | section: {metadata_section}"
@@ -153,9 +169,17 @@ class Sorter(Controller):
             )
 
     def _save_current_state(self) -> None:
+        sorted_desc_data_by_session_id = {}
+        for (
+            session_id,
+            sorted_desc_data,
+        ) in self._sorted_desc_data_by_session_id.items():
+            sorted_desc_data_by_session_id[session_id] = sorted_desc_data.to_dict()
+
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
             PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+            SortedDescDataBySessionId(sorted_desc_data_by_session_id),
         ]
         metadata_sections_str = "".join([str(section) for section in metadata_sections])
         self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)

@@ -739,7 +739,7 @@ function add-transactions-with-users-q4x-joiner(){
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=$USERS_CLN_AMOUNT"
-  add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_REDUCERS_AMOUNT"
+  add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_SORTERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT"
   add-line $compose_file '    networks:'
   add-line $compose_file '      - custom_net'

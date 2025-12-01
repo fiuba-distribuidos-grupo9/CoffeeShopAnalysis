@@ -1,5 +1,6 @@
 ToDo list:
-- tener cuidado con los statefull de primero guardar todo en un archivo y recien despues enviar, porque sino vamos a generar mensajes de mas que no se van a poder detectar como duplicados. 
+- deberiamos imprimir lo que se va cargando de la metadata, total es una unica vez que se hace
+- tener cuidado con los statefull de primero guardar todo en un archivo y recien despues enviar, porque sino vamos a generar mensajes de mas que no se van a poder detectar como duplicados.
 - cada controller tiene que guardar el ultimo mensaje que le mando el anterior controller (segun el id). No se si convendra hacer eso para los eof. 
 - en cuanto se cae el server tiene que mandar un mensaje a todos para que limpien la información de todos los clientes.
 - aplicar patrón visitor

@@ -120,13 +120,10 @@ class Reducer(Controller):
                     metadata_section.prev_controllers_eof_recv()
                 )
             elif isinstance(metadata_section, ReducedDataBySessionId):
-                reduced_data_by_session_id_dict = (
-                    metadata_section.reduced_data_by_session_id()
-                )
                 for (
                     session_id,
                     reduced_data_dict,
-                ) in reduced_data_by_session_id_dict.items():
+                ) in metadata_section.reduced_data_by_session_id().items():
                     reduced_data = ReducedData(
                         self._keys(),
                         self._accumulator_name(),
@@ -153,10 +150,7 @@ class Reducer(Controller):
     def _save_current_state(self) -> None:
         reduced_data_by_session_id_dict = {}
         for session_id, reduced_data in self._reduced_data_by_session_id.items():
-            if reduced_data.is_empty():
-                del self._reduced_data_by_session_id[session_id]
-            else:
-                reduced_data_by_session_id_dict[session_id] = reduced_data.to_dict()
+            reduced_data_by_session_id_dict[session_id] = reduced_data.to_dict()
 
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
