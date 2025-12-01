@@ -362,9 +362,11 @@ class StreamDataHandler:
                     f"action: all_eofs_received_before_base_data | result: success | session_id: {session_id}"
                 )
                 # Requeue the EOF message until all base data is received
+                # @TODO: base data handler should send a special message to notify that all base data has been received
                 self._prev_controllers_eof_recv[session_id][
                     int(prev_controller_id)
                 ] = False
+                del self._prev_controllers_last_message[int(prev_controller_id)]
                 self._mom_consumer.send(str(message))
 
     def _handle_stream_data(self, message_as_bytes: bytes) -> None:
