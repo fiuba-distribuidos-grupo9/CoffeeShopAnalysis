@@ -17,6 +17,7 @@ from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRec
 from shared.file_protocol.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
+from shared.file_protocol.session_batch_messages import SessionBatchMessages
 from shared.simple_hash import simple_hash
 
 
@@ -92,9 +93,16 @@ class StreamDataHandler:
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
-        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_file_name = Path("stream_metadata.txt")
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
+
+        self._base_data_dir = Path("base_data")
+        self._base_data_file_prefix = Path("base_data_")
+
+        self._stream_data_dir = Path("stream_data")
+        self._stream_data_dir.mkdir(parents=True, exist_ok=True)
+        self._stream_data_file_prefix = Path("stream_data_")
 
     # ============================== PRIVATE - LOGGING ============================== #
 
@@ -128,6 +136,36 @@ class StreamDataHandler:
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
+    def _assert_is_file(self, path: Path) -> None:
+        if not path.exists() or not path.is_file():
+            raise ValueError(f"Data path error: {path} is not a file")
+
+    def _assert_is_dir(self, path: Path) -> None:
+        if not path.exists() or not path.is_dir():
+            raise ValueError(f"Data path error: {path} is not a folder")
+
+    def _load_stream_data(self) -> None:
+        logging.info(f"action: load_stream_data | result: in_progress")
+
+        for path in self._stream_data_dir.iterdir():
+            self._assert_is_file(path)
+            metadata_sections = self._metadata_reader.read_from(path)
+            for metadata_section in metadata_sections:
+                # @TODO: visitor pattern can be used here
+                if isinstance(metadata_section, SessionBatchMessages):
+                    session_id = path.stem.replace(
+                        str(self._stream_data_file_prefix), ""
+                    )
+                    self._stream_data_buffer_by_session_id[session_id] = (
+                        metadata_section.batch_messages()
+                    )
+                else:
+                    logging.warning(
+                        f"action: unknown_metadata_section | result: error | section: {metadata_section}"
+                    )
+
+        logging.info(f"action: load_stream_data | result: success")
+
     def _load_last_state(self) -> None:
         path = self._metadata_file_name
         logging.info(f"action: load_last_state | result: in_progress | file: {path}")
@@ -148,6 +186,8 @@ class StreamDataHandler:
                     f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
+        self._load_stream_data()
+
         logging.info(f"action: load_last_state | result: success | file: {path}")
 
     def _load_last_state_if_exists(self) -> None:
@@ -159,7 +199,20 @@ class StreamDataHandler:
                 f"action: load_last_state_skipped | result: success | file: {path}"
             )
 
-    def _save_current_state(self) -> None:
+    def _save_stream_data_section(self, session_id: str) -> None:
+        stream_data_section = SessionBatchMessages(
+            self._stream_data_buffer_by_session_id[session_id]
+        )
+        self._atomic_writer.write(
+            self._stream_data_dir / f"{self._stream_data_file_prefix}{session_id}.txt",
+            str(stream_data_section),
+        )
+
+    def _save_current_state(self, message: Message) -> None:
+        if isinstance(message, BatchMessage):
+            session_id = message.session_id()
+            self._save_stream_data_section(session_id)
+
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
             PrevControllersEOFRecv(self._prev_controllers_eof_recv),
@@ -230,7 +283,8 @@ class StreamDataHandler:
         session_id = message.session_id()
         with self._all_base_data_received_lock:
             self._stream_data_buffer_by_session_id.setdefault(session_id, [])
-            self._stream_data_buffer_by_session_id[session_id].append(message)
+            if message not in self._stream_data_buffer_by_session_id[session_id]:
+                self._stream_data_buffer_by_session_id[session_id].append(message)
             if self._all_base_data_received.get(session_id, False):
                 self._send_all_buffered_messages(session_id)
             else:
@@ -247,11 +301,22 @@ class StreamDataHandler:
 
         if session_id in self._stream_data_buffer_by_session_id:
             del self._stream_data_buffer_by_session_id[session_id]
+            stream_data_file_path = (
+                self._stream_data_dir
+                / f"{self._stream_data_file_prefix}{session_id}.txt"
+            )
+            if stream_data_file_path.exists() and stream_data_file_path.is_file():
+                stream_data_file_path.unlink()
 
         with self._all_base_data_received_lock:
             del self._all_base_data_received[session_id]
         with self._base_data_by_session_id_lock:
             del self._base_data_by_session_id[session_id]
+            base_data_file_path = (
+                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
+            )
+            if base_data_file_path.exists() and base_data_file_path.is_file():
+                base_data_file_path.unlink()
 
         logging.info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
@@ -308,10 +373,16 @@ class StreamDataHandler:
             return
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
-        if isinstance(message, BatchMessage):
-            self._handle_data_batch_message_when_all_base_data_received(message)
-        elif isinstance(message, EOFMessage):
-            self._handle_data_batch_eof_message(message)
+        if not self.is_duplicate_message(message):
+            if isinstance(message, BatchMessage):
+                self._handle_data_batch_message_when_all_base_data_received(message)
+            elif isinstance(message, EOFMessage):
+                self._handle_data_batch_eof_message(message)
+            self._save_current_state(message)
+        else:
+            self._log_info(
+                f"action: duplicate_message_ignored | result: success | message: {message}"
+            )
 
     # ============================== PRIVATE - RUN ============================== #
 

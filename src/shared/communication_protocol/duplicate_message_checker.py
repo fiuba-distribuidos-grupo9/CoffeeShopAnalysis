@@ -24,22 +24,20 @@ class DuplicateMessageChecker:
         controller_id = int(message.controller_id())
 
         last_message = self._context.last_message_of(controller_id)
+        self._context.update_last_message(message, controller_id)
         if last_message is None:
-            self._context.update_last_message(message, controller_id)
             return False
         else:
-            self._context.update_last_message(message, controller_id)
             return last_message == message
 
     def visit_eof_message(self, message: EOFMessage) -> bool:
         controller_id = int(message.controller_id())
 
         last_message = self._context.last_message_of(controller_id)
+        self._context.update_last_message(message, controller_id)
         if last_message is None:
-            self._context.update_last_message(message, controller_id)
             return False
         else:
-            self._context.update_last_message(message, controller_id)
             return last_message == message
 
     def visit_handshake_message(self, message: HandshakeMessage) -> bool:
