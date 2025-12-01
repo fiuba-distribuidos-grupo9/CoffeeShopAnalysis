@@ -4,10 +4,10 @@ import logging
 import threading
 import time
 from typing import Optional, List
-from .models import Config, Peer, Message, ControllerTarget
+from shared.models import Config, Peer, Message, ControllerTarget
 from .election import Election
 from .dood import DockerReviver
-from .socket_manager import SocketManager, SocketConfig
+from shared.socket_manager import SocketManager, SocketConfig
 
 # Node Class that manages ring communication and health-checking.
 class Node:
@@ -239,11 +239,6 @@ class Node:
                 self._successor_index = 0
         else:
             self._successor_index = 0
-        
-        logging.info(
-            f"action: remove_peer | result: success | peer_id: {peer_id} | "
-            f"remaining_peers: {len(self._peers)}"
-        )
     
     def _get_election_port_for_host(self, target_host: str) -> int:
         for peer in self._peers:
@@ -255,7 +250,6 @@ class Node:
     def _send_to_successor_with_retry(self, msg: Message) -> bool:
         with self._lock:
             if not self._peers:
-                logging.info(f"action: send_message | result: fail | reason: no_peers_available")
                 return False
             
             max_attempts = len(self._peers)
@@ -264,7 +258,6 @@ class Node:
         while attempts < max_attempts:
             with self._lock:
                 if not self._peers:
-                    logging.info(f"action: send_message | result: fail | reason: all_peers_removed")
                     return False
                 
                 suc = self.successor()
@@ -347,7 +340,7 @@ class Node:
 
             success = self._health_socket.send_message(ack, addr)
             if success:
-                logging.info(f"action: heartbeat_ack | result: success | address: {addr}")
+                logging.debug(f"action: heartbeat_ack | result: success | address: {addr}")
             else:
                 logging.error(f"action: heartbeat_ack | result: fail | address: {addr}")
         
@@ -386,11 +379,6 @@ class Node:
                 
                 success = self._send_heartbeat_with_retry(target)
                 if not success:
-                    logging.info(
-                        f"action: revive_controller | status: in_progress | "
-                        f"controller_down: {target.name}"
-                    )
-
                     revived = self._revive_controller(target)
                     if revived:
                         logging.info(
@@ -465,9 +453,9 @@ class Node:
         logging.info(f"action: leader_check | status: in progress")
         leader_info = self.get_leader_info()
         if leader_info is None:
-            logging.info(f"action: leader_check | status: completed | result: no leader found")
             with self._leader_check_lock:
                 self._leader_check_failures = 0
+            self.election.start_election()
             return
         
         host, port = leader_info
@@ -479,7 +467,6 @@ class Node:
             payload={},
         )
         
-        logging.info(f"action: sending is_leader_alive | status: in progress")
         success = self._health_socket.send_with_ack(
             msg=msg,
             target=(host, port),

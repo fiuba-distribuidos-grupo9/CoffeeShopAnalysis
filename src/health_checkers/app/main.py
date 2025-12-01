@@ -6,7 +6,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Optional
-from .utils import load_config_from_env, jitter_ms
+from shared.utils import load_config_from_env, jitter_ms
 from .node import Node  
 from shared import initializer
 

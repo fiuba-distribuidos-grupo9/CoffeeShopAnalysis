@@ -4,8 +4,8 @@ import logging
 import threading
 import time
 from typing import Optional, Callable, Dict, Set
-from .models import Message, Config
-from .utils import jitter_ms
+from shared.models import Message, Config
+from shared.utils import jitter_ms
 
 # Election class implementing the ring election algorithm.
 class Election:
