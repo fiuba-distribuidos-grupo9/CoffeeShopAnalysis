@@ -117,6 +117,7 @@ class Server:
                 else:
                     process.close()
                     self._client_spawned_processes.pop(session_id)
+                    self._save_current_state()
                     self._log_info(
                         f"action: close_process | result: success | pid: {pid}"
                     )

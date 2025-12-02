@@ -193,7 +193,7 @@ class ClientSessionHandler:
 
         mom_producers = self._mom_cleaners_connections[data_type]
         for mom_producer in mom_producers:
-            message.update_message_id(uuid.uuid4().hex)
+            message.update_message_id(uuid.UUID(int=0).hex)
             message.update_controller_id(str(self._controller_id))
             mom_producer.send(str(message))
 
