@@ -289,14 +289,13 @@ class Sorter(Controller):
     def _mom_send_all_messages_to_next(self, session_id: str) -> None:
         messages = self._load_results_to_be_sent(session_id)
 
-        for message in messages:
+        while len(messages) > 0:
+            message = messages.pop(0)
             batch_size = len(message.batch_items())
             self._mom_send_message_to_next(message)
             logging.debug(
                 f"action: batch_sent | result: success | session_id: {session_id} | batch_size: {batch_size}"
             )
-
-            messages.remove(message)
             self._save_results_to_be_sent(session_id, messages)
 
     def _are_results_to_be_sent(self, session_id: str) -> bool:

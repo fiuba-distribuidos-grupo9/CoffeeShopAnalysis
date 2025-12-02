@@ -239,21 +239,22 @@ class StreamDataHandler:
 
     def _join_with_base_data(self, stream_message: BatchMessage) -> BatchMessage:
         joined_batch_items: list[dict[str, str]] = []
-        for stream_batch_item in stream_message.batch_items():
-            was_joined = False
-            for base_messages in self._base_data_by_session_id.get(
-                stream_message.session_id(), []
-            ):
-                for base_batch_item in base_messages.batch_items():
-                    if self._should_be_joined(base_batch_item, stream_batch_item):
-                        joined_batch_item = {**stream_batch_item, **base_batch_item}
-                        joined_batch_items.append(joined_batch_item)
-                        was_joined = True
-                        break
-            if not was_joined:
-                self._log_warning(
-                    f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
-                )
+        with self._base_data_by_session_id_lock:
+            for stream_batch_item in stream_message.batch_items():
+                was_joined = False
+                for base_messages in self._base_data_by_session_id.get(
+                    stream_message.session_id(), []
+                ):
+                    for base_batch_item in base_messages.batch_items():
+                        if self._should_be_joined(base_batch_item, stream_batch_item):
+                            joined_batch_item = {**stream_batch_item, **base_batch_item}
+                            joined_batch_items.append(joined_batch_item)
+                            was_joined = True
+                            break
+                if not was_joined:
+                    self._log_warning(
+                        f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
+                    )
         stream_message.update_batch_items(joined_batch_items)
         return stream_message
 
@@ -273,14 +274,18 @@ class StreamDataHandler:
             f"action: send_all_buffered_messages | result: in_progress | session_id: {session_id}"
         )
 
-        batch_messages = self._stream_data_buffer_by_session_id.get(session_id, [])
-        for batch_message in batch_messages:
-            joined_message = self._join_with_base_data(batch_message)
-            if len(joined_message.batch_items()) > 0:
-                joined_message.update_controller_id(str(self._controller_id))
-                self._mom_send_message_to_next(joined_message)
+        while len(self._stream_data_buffer_by_session_id.get(session_id, [])) > 0:
+            stream_message = self._stream_data_buffer_by_session_id[session_id].pop()
+            joined_message = self._join_with_base_data(stream_message)
+            if len(joined_message.batch_items()) == 0:
+                logging.warning(
+                    f"action: empty_joined_message | result: error | session_id: {session_id}"
+                )
+                continue
 
-            self._stream_data_buffer_by_session_id[session_id].remove(batch_message)
+            joined_message.update_controller_id(str(self._controller_id))
+            self._mom_send_message_to_next(joined_message)
+            
             self._save_stream_data_section(session_id)
 
         self._log_info(

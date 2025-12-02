@@ -268,9 +268,6 @@ class ClientSessionHandler:
                 return
 
             received_message = self._socket_receive_message(client_socket)
-            self._log_info(
-                f"action: receive_data_from_client | result: success | msg: {received_message}"
-            )
             self._with_each_message_do(
                 received_message,
                 self._handle_client_message,
