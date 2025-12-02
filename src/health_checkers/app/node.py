@@ -40,8 +40,7 @@ class Node:
         self._lock = threading.Lock()
         self._election_recv_thread: Optional[threading.Thread] = None
         self._health_recv_thread: Optional[threading.Thread] = None
-        self._leader_health_thread: Optional[threading.Thread] = None
-        self._follower_health_thread: Optional[threading.Thread] = None
+        self._health_send_thread: Optional[threading.Thread] = None
         self._leader_check_failures = 0
         self._max_leader_check_failures = 3
         self._leader_check_lock = threading.Lock()
@@ -62,29 +61,22 @@ class Node:
             name=f"Node-ElectionRecv-{self.cfg.node_id}",
             daemon=True
         )
-
         self._election_recv_thread.start()
+        
         self._health_recv_thread = threading.Thread(
             target=self._health_recv_loop,
             name=f"Node-HealthRecv-{self.cfg.node_id}",
             daemon=True
         )
-
         self._health_recv_thread.start()
-        self._leader_health_thread = threading.Thread(
-            target=self._leader_health_loop,
-            name=f"Node-LeaderHealth-{self.cfg.node_id}",
+
+        self._health_send_thread = threading.Thread(
+            target=self._health_loop,
+            name=f"Node-HealthSend-{self.cfg.node_id}",
             daemon=True
         )
-
-        self._leader_health_thread.start()
-        self._follower_health_thread = threading.Thread(
-            target=self._follower_health_loop,
-            name=f"Node-FollowerHealth-{self.cfg.node_id}",
-            daemon=True
-        )
-
-        self._follower_health_thread.start()
+        self._health_send_thread.start()
+        
         logging.info(
             f"action: start_node | result: success | "
             f"election_port: {self.cfg.listen_port} | "
@@ -102,8 +94,7 @@ class Node:
         threads = [
             (self._election_recv_thread, "ElectionRecv"),
             (self._health_recv_thread, "HealthRecv"),
-            (self._leader_health_thread, "LeaderHealth"),
-            (self._follower_health_thread, "FollowerHealth")
+            (self._health_send_thread, "HealthSend")
         ]
         
         for thread, name in threads:
@@ -364,32 +355,36 @@ class Node:
         elif kind == "leader_alive_ack":
             pass
 
-    def _leader_health_loop(self) -> None:
-        logging.info(f"action: leader_health_loop startup | result: success")
+    def _health_loop(self) -> None:
+        logging.info(f"action: _health_send_thread startup | result: success")
         interval_s = self.cfg.heartbeat_interval_ms / 1000.0
+
         while self._running:
-            if not self.is_leader():
-                time.sleep(1.0)
-                continue
-            
-            logging.info(f"action: send_heartbeat | result: success")
-            for target in self.cfg.controller_targets:
-                if not self._running:
-                    break
-                
-                success = self._send_heartbeat_with_retry(target)
-                if not success:
-                    revived = self._revive_controller(target)
-                    if revived:
-                        logging.info(
-                            f"action: revive_controller | result: success | "
-                            f"controller_revived: {target.name}"
-                        )
-                        
-                        time.sleep(2.0)
-                        self.notify_leadership_to(target.host, target.port)
-            
-            time.sleep(interval_s)
+            if self.is_leader():
+                with self._leader_check_lock:
+                    if self._leader_check_failures != 0:
+                        self._leader_check_failures = 0
+                for target in self.cfg.controller_targets:
+                    if not self._running:
+                        break
+                    
+                    success = self._send_heartbeat_with_retry(target)
+                    if not success:
+                        revived = self._revive_controller(target)
+                        if revived:
+                            logging.info(
+                                f"action: revive_controller | result: success | "
+                                f"controller_revived: {target.name}"
+                            )
+                            
+                            time.sleep(2.0)
+                            self.notify_leadership_to(target.host, target.port)
+                    else:
+                        logging.info(f"action: send_heartbeat | result: success | controller_name: {target.name}")
+                time.sleep(interval_s)
+            else:
+                time.sleep(interval_s)
+                self._check_leader_alive()
     
     def _send_heartbeat_with_retry(self, target: ControllerTarget) -> bool:
         timeout_s = self.cfg.heartbeat_timeout_ms / 1000.0
@@ -434,20 +429,6 @@ class Node:
             )
 
             return False
-    
-    def _follower_health_loop(self) -> None:
-        logging.info(f"action: follower_health_loop startup | result: success")
-        interval_s = self.cfg.leader_check_interval_ms / 1000.0
-        while self._running:
-            if self.is_leader():
-                with self._leader_check_lock:
-                    self._leader_check_failures = 0
-                time.sleep(1.0)
-                continue
-            
-            time.sleep(interval_s)
-            if not self.is_leader():
-                self._check_leader_alive()
     
     def _check_leader_alive(self) -> None:
         logging.info(f"action: leader_check | status: in progress")

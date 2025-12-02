@@ -1,4 +1,4 @@
-# Script to run the health checker application
+#!/bin/bash
 set -e
 
 export PYTHONUNBUFFERED=1
