@@ -85,7 +85,10 @@ class Client:
     def _socket_send_message(self, socket: socket.socket, message: str) -> None:
         self._log_debug(f"action: send_message | result: in_progress | msg: {message}")
 
-        socket.sendall(message.encode("utf-8"))
+        if self._is_running():
+            socket.sendall(message.encode("utf-8"))
+        else:
+            logging.error(f"action: send_message_while_not_running | result: error")
 
         self._log_debug(f"action: send_message | result: success |  msg: {message}")
 

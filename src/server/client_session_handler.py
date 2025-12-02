@@ -5,7 +5,6 @@ import socket
 import uuid
 from typing import Any, Callable
 
-from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared import constants
 from shared.communication_protocol import constants as cp_constants
@@ -70,12 +69,13 @@ class ClientSessionHandler:
     def __init__(
         self,
         client_socket: socket.socket,
+        session_id: str,
         rabbitmq_host: str,
         cleaners_data: dict,
         output_builders_data: dict,
     ) -> None:
         self._client_socket = client_socket
-        self._session_id = uuid.uuid4().hex
+        self._session_id = session_id
         self._controller_id = 0
 
         self._set_as_not_running()
@@ -136,7 +136,10 @@ class ClientSessionHandler:
     def _socket_send_message(self, socket: socket.socket, message: str) -> None:
         self._log_debug(f"action: send_message | result: in_progress | msg: {message}")
 
-        socket.sendall(message.encode("utf-8"))
+        if self._is_running():
+            socket.sendall(message.encode("utf-8"))
+        else:
+            logging.error(f"action: send_message_while_not_running | result: error")
 
         self._log_debug(f"action: send_message | result: success |  msg: {message}")
 

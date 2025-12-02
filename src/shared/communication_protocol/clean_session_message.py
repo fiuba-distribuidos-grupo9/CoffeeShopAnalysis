@@ -4,11 +4,11 @@ from shared.communication_protocol import constants
 from shared.communication_protocol.message import Message
 
 
-class EOFMessage(Message):
+class CleanSessionMessage(Message):
 
     @classmethod
     def _unique_available_message_type(cls) -> str:
-        return constants.EOF_MSG_TYPE
+        return constants.CLEAN_SESSION_MSG_TYPE
 
     @classmethod
     def _available_message_types(cls) -> list[str]:
@@ -26,21 +26,17 @@ class EOFMessage(Message):
     # ============================== PRIVATE - DECODE ============================== #
 
     @classmethod
-    def _decode_metadata(
-        cls, metadata: str
-    ) -> tuple[str, Optional[str], Optional[str]]:
+    def _decode_metadata(cls, metadata: str) -> tuple[str, str, str]:
         metadata_fields = metadata.split(constants.METADATA_SEPARATOR)
-        if len(metadata_fields) == 3:
-            session_id, message_id, controller_id = metadata_fields
-            return session_id, message_id, controller_id
-        else:
-            session_id = metadata_fields[0]
-            return session_id, None, None
+        if len(metadata_fields) != 3:
+            raise ValueError(f"Invalid metadata format: {metadata}")
+        session_id, message_id, controller_id = metadata_fields
+        return session_id, message_id, controller_id
 
     # ============================== INSTANCE CREATION ============================== #
 
     @classmethod
-    def from_str(cls, message_str: str) -> "EOFMessage":
+    def from_str(cls, message_str: str) -> "CleanSessionMessage":
         cls._assert_expected_message_type(
             cls._message_type_from_str(message_str),
             cls._available_message_types(),
@@ -49,9 +45,7 @@ class EOFMessage(Message):
         metadata = cls._metadata_from_str(message_str)
         (session_id, message_id, controller_id) = cls._decode_metadata(metadata)
 
-        batch_message_type = cls._payload_from_str(message_str)
-
-        return cls(session_id, message_id, controller_id, batch_message_type)
+        return cls(session_id, message_id, controller_id)
 
     # ============================== PRIVATE - INITIALIZE ============================== #
 
@@ -60,13 +54,10 @@ class EOFMessage(Message):
         session_id: str,
         message_id: Optional[str],
         controller_id: Optional[str],
-        batch_message_type: str,
     ) -> None:
         self._session_id = session_id
         self._message_id = message_id
         self._controller_id = controller_id
-
-        self._batch_message_type = batch_message_type
 
     # ============================== ACCESSING ============================== #
 
@@ -77,7 +68,7 @@ class EOFMessage(Message):
         return self._encode_metadata()
 
     def payload(self) -> str:
-        return self._batch_message_type
+        return ""
 
     def session_id(self) -> str:
         return self._session_id
@@ -91,9 +82,6 @@ class EOFMessage(Message):
         if self._controller_id is None:
             raise ValueError("Controller ID is not set")
         return self._controller_id
-
-    def batch_message_type(self) -> str:
-        return self._batch_message_type
 
     # ============================== PRIVATE - ENCODE ============================== #
 
@@ -116,17 +104,16 @@ class EOFMessage(Message):
     # ============================== VISITOR ============================== #
 
     def accept(self, visitor: Any) -> Any:
-        return visitor.visit_eof_message(self)
+        return visitor.visit_clean_session_message(self)
 
     # ============================== COMPARING ============================== #
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, EOFMessage):
+        if not isinstance(other, CleanSessionMessage):
             return False
 
         return (
             self.session_id() == other.session_id()
             and self.message_id() == other.message_id()
             and self.controller_id() == other.controller_id()
-            and self.batch_message_type() == other.batch_message_type()
         )
