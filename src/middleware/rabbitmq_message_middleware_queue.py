@@ -47,6 +47,7 @@ class RabbitMQMessageMiddlewareQueue(MessageMiddlewareQueue):
             )
             self._channel = self._connection.channel()
             self._channel.basic_qos(prefetch_count=1)
+            self._channel.confirm_delivery()
             self._channel.queue_declare(queue=queue_name, durable=True)
         except Exception as e:
             raise MessageMiddlewareDisconnectedError(
@@ -113,6 +114,7 @@ class RabbitMQMessageMiddlewareQueue(MessageMiddlewareQueue):
             routing_key=self._queue_name,
             body=message,
             properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent),  # type: ignore
+            mandatory=True,
         )
 
     # ============================== PUBLIC - INTERFACE ============================== #
