@@ -15,12 +15,12 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
-from shared.file_protocol.reduced_data_by_session_id import ReducedDataBySessionId
-from shared.file_protocol.session_batch_messages import SessionBatchMessages
+from shared.file_protocol.metadata_sections.reduced_data_by_session_id import ReducedDataBySessionId
+from shared.file_protocol.metadata_sections.session_batch_messages import SessionBatchMessages
 
 
 class Reducer(Controller):

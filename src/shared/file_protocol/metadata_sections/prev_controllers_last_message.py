@@ -2,7 +2,7 @@ from typing import Any
 
 from shared.communication_protocol.message import Message
 from shared.file_protocol import constants
-from shared.file_protocol.metadata_section import MetadataSection
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 
 
 class PrevControllersLastMessage(MetadataSection):

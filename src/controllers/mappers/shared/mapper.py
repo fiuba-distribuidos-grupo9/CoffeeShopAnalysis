@@ -13,8 +13,8 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
 

@@ -13,11 +13,11 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
-from shared.file_protocol.session_batch_messages import SessionBatchMessages
+from shared.file_protocol.metadata_sections.session_batch_messages import SessionBatchMessages
 
 
 class BaseDataHandler:
@@ -105,12 +105,12 @@ class BaseDataHandler:
         return self._prev_controllers_last_message.get(controller_id)
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
-    
+
     def _file_exists(self, path: Path) -> bool:
         return path.exists() and path.is_file()
 
     def _assert_is_file(self, path: Path) -> None:
-        if not self._file_exists():
+        if not self._file_exists(path):
             raise ValueError(f"Data path error: {path} is not a file")
 
     def _assert_is_dir(self, path: Path) -> None:

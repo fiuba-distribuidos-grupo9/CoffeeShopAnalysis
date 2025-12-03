@@ -2,7 +2,7 @@ from typing import Any
 
 from shared.file_protocol import constants
 from shared.file_protocol.json_codec import JSONCodec
-from shared.file_protocol.metadata_section import MetadataSection
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 
 
 class ReducedDataBySessionId(MetadataSection):
@@ -22,8 +22,12 @@ class ReducedDataBySessionId(MetadataSection):
 
         for line in lines:
             session_id, reduced_data_str = line.split(constants.DICT_KEY_SEPARATOR, 1)
-            reduced_data = json_codec.decode(reduced_data_str)
-            reduced_data_by_session_id[session_id] = reduced_data
+            modified_reduced_data = json_codec.decode(reduced_data_str)
+            reduced_data: dict[tuple, float] = {}
+            for key_str in modified_reduced_data.keys():
+                key_tuple = tuple(map(str, key_str.split(",")))
+                reduced_data[key_tuple] = modified_reduced_data[key_str]
+            reduced_data_by_session_id[session_id] = modified_reduced_data
 
         return cls(reduced_data_by_session_id)
 
@@ -39,8 +43,17 @@ class ReducedDataBySessionId(MetadataSection):
     def _payload_for_file(self) -> str:
         json_codec = JSONCodec()
         # <session_id>:<reduced_data_json>\n
-        payload = ""
+
+        modified_reduced_data_by_session_id: dict[str, dict[str, float]] = {}
         for session_id, reduced_data in self._reduced_data_by_session_id.items():
+            modified_reduced_data = {}
+            for key in reduced_data.keys():
+                new_key = ",".join(map(str, key))
+                modified_reduced_data[new_key] = reduced_data[key]
+            modified_reduced_data_by_session_id[session_id] = modified_reduced_data
+
+        payload = ""
+        for session_id, reduced_data in modified_reduced_data_by_session_id.items():
             payload += f"{session_id}"
             payload += constants.DICT_KEY_SEPARATOR
             payload += json_codec.encode(reduced_data)
