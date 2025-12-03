@@ -75,6 +75,11 @@ class ClientSessionHandler:
         output_builders_data: dict,
     ) -> None:
         self._client_socket = client_socket
+        self._client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 10)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+
         self._session_id = session_id
         self._controller_id = 0
 

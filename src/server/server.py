@@ -134,6 +134,7 @@ class Server:
         return uncaught_exceptions
 
     def _join_non_alive_processes(self) -> None:
+        processes_to_close: list[tuple[str, multiprocessing.Process]] = []
         for session_id, process in self._client_spawned_processes.items():
             if not process.is_alive():
                 process.join()
@@ -143,18 +144,21 @@ class Server:
                     f"action: join_process | result: success | pid: {pid} | exitcode: {exitcode}"
                 )
 
+                processes_to_close.append((session_id, process))
                 if exitcode != 0:
                     self._clean_up_zombie_session(session_id)
                     self._log_error(
                         f"action: process_error | result: error | pid: {pid} | exitcode: {exitcode}"
                     )
                 else:
-                    process.close()
-                    self._client_spawned_processes.pop(session_id)
-                    self._save_current_state()
                     self._log_info(
                         f"action: close_process | result: success | pid: {pid}"
                     )
+
+        for session_id, process in processes_to_close:
+            process.close()
+            self._client_spawned_processes.pop(session_id)
+        self._save_current_state()
 
         if self._heartbeat_process:
             process = self._heartbeat_process
@@ -166,13 +170,13 @@ class Server:
                     f"action: join_process | result: success | pid: {pid} | exitcode: {exitcode}"
                 )
 
+                process.close()
+                self._heartbeat_process = None
                 if exitcode != 0:
                     self._log_error(
                         f"action: process_error | result: error | pid: {pid} | exitcode: {exitcode}"
                     )
                 else:
-                    process.close()
-                    self._heartbeat_process = None
                     self._log_info(
                         f"action: close_process | result: success | pid: {pid}"
                     )
@@ -271,7 +275,6 @@ class Server:
             self._cleaners_data,
             self._output_builders_data,
         ).run()
-        self._save_current_state()
         self._log_info(
             f"action: clean_zombie_session | result: success | session_id: {session_id}"
         )
@@ -285,6 +288,7 @@ class Server:
                 self._log_error(
                     f"action: clean_zombie_session | result: error | session_id: {session_id} | error: {e}"
                 )
+        self._save_current_state()
 
     def _clean_up_zombie_sessions_if_any(self) -> None:
         path = self._metadata_file_name

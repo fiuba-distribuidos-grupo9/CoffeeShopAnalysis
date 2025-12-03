@@ -55,6 +55,9 @@ class Controller(ABC):
     def _log_info(self, text: str) -> None:
         logging.info(f"{text} | pid: main_process")
 
+    def _log_warning(self, text: str) -> None:
+        logging.warning(f"{text} | pid: main_process")
+
     def _log_error(self, text: str) -> None:
         logging.error(f"{text} | pid: main_process")
 
@@ -183,9 +186,8 @@ class Controller(ABC):
                 f"Some processes exited with errors: {uncaught_exceptions_as_str}"
             )
 
-    @abstractmethod
     def _close_all(self) -> None:
-        raise NotImplementedError("subclass resposability")
+        self._close_heartbeat_process()
 
     def _ensure_connections_close_after_doing(self, callback: Callable) -> None:
         try:
@@ -195,7 +197,6 @@ class Controller(ABC):
             raise e
         finally:
             self._close_all()
-            self._close_heartbeat_process()
             self._log_info("action: close_all | result: success")
 
     # ============================== PUBLIC ============================== #

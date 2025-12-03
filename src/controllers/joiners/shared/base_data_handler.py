@@ -5,6 +5,7 @@ from typing import Any, Callable, Optional
 
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.clean_session_message import CleanSessionMessage
 from shared.communication_protocol.duplicate_message_checker import (
     DuplicateMessageChecker,
 )
@@ -83,6 +84,9 @@ class BaseDataHandler:
     def _log_info(self, text: str) -> None:
         logging.info(f"{text} | thread_name: {threading.current_thread().name}")
 
+    def _log_warning(self, text: str) -> None:
+        logging.warning(f"{text} | thread_name: {threading.current_thread().name}")
+
     def _log_error(self, text: str) -> None:
         logging.error(f"{text} | thread_name: {threading.current_thread().name}")
 
@@ -101,9 +105,12 @@ class BaseDataHandler:
         return self._prev_controllers_last_message.get(controller_id)
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
+    
+    def _file_exists(self, path: Path) -> bool:
+        return path.exists() and path.is_file()
 
     def _assert_is_file(self, path: Path) -> None:
-        if not path.exists() or not path.is_file():
+        if not self._file_exists():
             raise ValueError(f"Data path error: {path} is not a file")
 
     def _assert_is_dir(self, path: Path) -> None:
@@ -111,7 +118,7 @@ class BaseDataHandler:
             raise ValueError(f"Data path error: {path} is not a folder")
 
     def _load_base_data(self) -> None:
-        logging.info(f"action: load_base_data | result: in_progress")
+        self._log_info(f"action: load_base_data | result: in_progress")
 
         with self._all_base_data_received_lock:
             for session_id, eof_recv in self._prev_controllers_eof_recv.items():
@@ -129,15 +136,15 @@ class BaseDataHandler:
                             metadata_section.batch_messages()
                         )
                 else:
-                    logging.warning(
+                    self._log_warning(
                         f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                     )
 
-        logging.info(f"action: load_base_data | result: success")
+        self._log_info(f"action: load_base_data | result: success")
 
     def _load_last_state(self) -> None:
         path = self._metadata_file_name
-        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+        self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
@@ -151,34 +158,37 @@ class BaseDataHandler:
                     metadata_section.prev_controllers_eof_recv()
                 )
             else:
-                logging.warning(
+                self._log_warning(
                     f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         self._load_base_data()
 
-        logging.info(f"action: load_last_state | result: success | file: {path}")
+        self._log_info(f"action: load_last_state | result: success | file: {path}")
 
     def _load_last_state_if_exists(self) -> None:
         path = self._metadata_file_name
         if path.exists() and path.is_file():
             self._load_last_state()
         else:
-            logging.info(
+            self._log_info(
                 f"action: load_last_state_skipped | result: success | file: {path}"
             )
 
     def _save_base_data_section(self, session_id: str) -> None:
         with self._base_data_by_session_id_lock:
-            self._atomic_writer.write(
-                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt",
-                str(SessionBatchMessages(self._base_data_by_session_id[session_id])),
+            path = (
+                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
             )
+            batch_messages = self._base_data_by_session_id.get(session_id, None)
+            if batch_messages:
+                self._atomic_writer.write(
+                    path,
+                    str(SessionBatchMessages(batch_messages)),
+                )
 
-    def _save_current_state(self, message: Message) -> None:
-        if isinstance(message, BatchMessage):
-            session_id = message.session_id()
-            self._save_base_data_section(session_id)
+    def _save_current_state(self, session_id: str) -> None:
+        self._save_base_data_section(session_id)
 
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
@@ -200,13 +210,21 @@ class BaseDataHandler:
                 self._base_data_by_session_id[session_id].append(message)
 
     def _clean_session_data_of(self, session_id: str) -> None:
-        logging.info(
+        self._log_info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._prev_controllers_eof_recv[session_id]
+        self._prev_controllers_eof_recv.pop(session_id, None)
 
-        logging.info(
+        with self._base_data_by_session_id_lock:
+            self._base_data_by_session_id.pop(session_id, None)
+            path = (
+                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
+            )
+            if self._file_exists(path):
+                path.unlink()
+
+        self._log_info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
@@ -229,7 +247,19 @@ class BaseDataHandler:
             with self._all_base_data_received_lock:
                 self._all_base_data_received[session_id] = True
 
-            self._clean_session_data_of(session_id)
+            self._prev_controllers_eof_recv.pop(session_id, None)
+
+    def _handle_clean_session_data_message(self, message: CleanSessionMessage) -> None:
+        session_id = message.session_id()
+        self._log_info(
+            f"action: clean_session_message_received | result: success | session_id: {session_id}"
+        )
+
+        self._clean_session_data_of(session_id)
+
+        self._log_info(
+            f"action: clean_session_message_sent | result: success | session_id: {session_id}"
+        )
 
     def _handle_base_data(self, message_as_bytes: bytes) -> None:
         if not self._is_running():
@@ -240,9 +270,13 @@ class BaseDataHandler:
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
                 self._handle_base_data_batch_message(message)
+                self._save_current_state(message.session_id())
             elif isinstance(message, EOFMessage):
                 self._handle_base_data_batch_eof(message)
-            self._save_current_state(message)
+                self._save_current_state(message.session_id())
+            elif isinstance(message, CleanSessionMessage):
+                self._handle_clean_session_data_message(message)
+                self._save_current_state(message.session_id())
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message}"
