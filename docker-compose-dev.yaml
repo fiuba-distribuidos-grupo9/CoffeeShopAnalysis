@@ -4,6 +4,7 @@ services:
   # ============================== RABBITMQ SERVICE ============================== #
 
   rabbitmq-message-middleware:
+    container_name: rabbitmq-message-middleware
     image: "rabbitmq:4-management"
     ports:
       - "5672:5672"
@@ -21,9 +22,9 @@ services:
       start_period: 30s
 
   # ============================== CLIENT & SERVER SERVICES ============================== #
-  
-  client:
-    container_name: client
+
+  client_0:
+    container_name: client_0
     image: client:latest
     entrypoint: python3 -m client.main
     environment:
@@ -39,7 +40,7 @@ services:
       - custom_net
     volumes:
       - type: bind
-        source: ${LOCAL_DATA_PATH}
+        source: ${LOCAL_DATA_PATH_0}
         target: /data
         read_only: true
       - type: bind
@@ -77,11 +78,6 @@ services:
       - Q4X_OB_AMOUNT=1
     networks:
       - custom_net
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 1
     depends_on:
       rabbitmq-message-middleware:
         condition: service_healthy
@@ -96,8 +92,8 @@ services:
 
   # ============================== CLEANERS SERVICES ============================== #
 
-  menu_items_cleaner_items_0:
-    container_name: menu_items_cleaner_items_0
+  menu_items_cleaner_0:
+    container_name: menu_items_cleaner_0
     image: menu_items_cleaner:latest
     entrypoint: python3 -m controllers.cleaners.menu_items_cleaner.main
     environment:
@@ -112,8 +108,8 @@ services:
       rabbitmq-message-middleware:
         condition: service_healthy
 
-  stores_cleaner_items_0:
-    container_name: stores_cleaner_items_0
+  stores_cleaner_0:
+    container_name: stores_cleaner_0
     image: stores_cleaner:latest
     entrypoint: python3 -m controllers.cleaners.stores_cleaner.main
     environment:
@@ -143,7 +139,7 @@ services:
     depends_on:
       rabbitmq-message-middleware:
         condition: service_healthy
-  
+
   transactions_cleaner_0:
     container_name: transactions_cleaner_0
     image: transactions_cleaner:latest
@@ -362,7 +358,7 @@ services:
         condition: service_healthy
 
   # ============================== SORTERS SERVICES ============================== #
-  
+
   desc_by_year_month_created_at_and_sellings_qty_sorter_0:
     container_name: desc_by_year_month_created_at_and_sellings_qty_sorter_0
     image: desc_by_year_month_created_at_and_sellings_qty_sorter:latest
@@ -421,7 +417,7 @@ services:
         condition: service_healthy
 
   # ============================== JOINERS SERVICES ============================== #
-  
+
   transaction_items_with_menu_items_query_21_joiner_0:
     container_name: transaction_items_with_menu_items_query_21_joiner_0
     image: transaction_items_with_menu_items_query_21_joiner:latest
@@ -431,7 +427,6 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - OUTPUT_BUILDERS_AMOUNT=1
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
@@ -450,7 +445,6 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - OUTPUT_BUILDERS_AMOUNT=1
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
@@ -469,7 +463,6 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - OUTPUT_BUILDERS_AMOUNT=1
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1

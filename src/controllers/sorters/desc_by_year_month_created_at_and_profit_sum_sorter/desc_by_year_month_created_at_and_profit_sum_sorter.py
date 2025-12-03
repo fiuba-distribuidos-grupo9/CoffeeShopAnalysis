@@ -3,7 +3,9 @@ from typing import Any
 from controllers.sorters.shared.sorter import Sorter
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
-from shared import communication_protocol
+from shared.communication_protocol import constants
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.simple_hash import simple_hash
 
 
 class DescByYearMonthCreatedAtAndProfitSumSorter(Sorter):
@@ -41,14 +43,12 @@ class DescByYearMonthCreatedAtAndProfitSumSorter(Sorter):
         return "profit_sum"
 
     def _message_type(self) -> str:
-        return communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE
+        return constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next(self, message: str) -> None:
-        mom_cleaned_data_producer = self._mom_producers[self._current_producer_id]
-        mom_cleaned_data_producer.send(message)
-
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(self._mom_producers)
+        mom_producer = self._mom_producers[hash]
+        mom_producer.send(str(message))

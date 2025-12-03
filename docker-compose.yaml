@@ -82,14 +82,6 @@ services:
     depends_on:
       rabbitmq-message-middleware:
         condition: service_healthy
-      transaction_items_with_menu_items_query_21_joiner_0:
-        condition: service_started
-      transaction_items_with_menu_items_query_22_joiner_0:
-        condition: service_started
-      transactions_with_stores_query_3x_joiner_0:
-        condition: service_started
-      transactions_with_stores_query_4x_joiner_0:
-        condition: service_started
 
   # ============================== CLEANERS SERVICES ============================== #
 
@@ -103,7 +95,6 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -314,7 +305,6 @@ services:
       rabbitmq-message-middleware:
         condition: service_healthy
 
-
   # ============================== FILTERS SERVICES ============================== #
 
   filter_transactions_by_year_0:
@@ -327,7 +317,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=4
-      - NEXT_CONTROLLERS_AMOUNT=2
+      - NEXT_CONTROLLERS_AMOUNT=4
       - YEARS_TO_KEEP=2024,2025
       - HEALTH_LISTEN_PORT=9201
     networks:
@@ -346,7 +336,7 @@ services:
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=4
-      - NEXT_CONTROLLERS_AMOUNT=2
+      - NEXT_CONTROLLERS_AMOUNT=4
       - YEARS_TO_KEEP=2024,2025
       - HEALTH_LISTEN_PORT=9201
     networks:
@@ -365,7 +355,7 @@ services:
       - CONTROLLER_ID=2
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=4
-      - NEXT_CONTROLLERS_AMOUNT=2
+      - NEXT_CONTROLLERS_AMOUNT=4
       - YEARS_TO_KEEP=2024,2025
       - HEALTH_LISTEN_PORT=9201
     networks:
@@ -407,7 +397,44 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
-      - HEALTH_LISTEN_PORT=9201
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  filter_transactions_by_hour_2:
+    container_name: filter_transactions_by_hour_2
+    image: filter_transactions_by_hour:latest
+    entrypoint: python3 -m controllers.filters.filter_transactions_by_hour.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=2
+      - RABBITMQ_HOST=rabbitmq-message-middleware
+      - PREV_CONTROLLERS_AMOUNT=3
+      - NEXT_CONTROLLERS_AMOUNT=2
+      - MIN_HOUR=6
+      - MAX_HOUR=23
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  filter_transactions_by_hour_3:
+    container_name: filter_transactions_by_hour_3
+    image: filter_transactions_by_hour:latest
+    entrypoint: python3 -m controllers.filters.filter_transactions_by_hour.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=3
+      - RABBITMQ_HOST=rabbitmq-message-middleware
+      - PREV_CONTROLLERS_AMOUNT=3
+      - NEXT_CONTROLLERS_AMOUNT=2
+      - MIN_HOUR=6
+      - MAX_HOUR=23
     networks:
       - custom_net
     depends_on:
@@ -423,7 +450,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_FINAL_AMOUNT=75.0
       - HEALTH_LISTEN_PORT=9201
@@ -442,7 +469,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_FINAL_AMOUNT=75.0
       - HEALTH_LISTEN_PORT=9201
@@ -574,7 +601,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=1
       - HEALTH_LISTEN_PORT=9201
     networks:
@@ -592,7 +619,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=1
       - HEALTH_LISTEN_PORT=9201
     networks:
@@ -729,7 +756,42 @@ services:
       - PREV_CONTROLLERS_AMOUNT=3
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
-      - HEALTH_LISTEN_PORT=9201
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  purchases_qty_by_store_id_and_user_id_reducer_2:
+    container_name: purchases_qty_by_store_id_and_user_id_reducer_2
+    image: purchases_qty_by_store_id_and_user_id_reducer:latest
+    entrypoint: python3 -m controllers.reducers.purchases_qty_by_store_id_and_user_id_reducer.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=2
+      - RABBITMQ_HOST=rabbitmq-message-middleware
+      - PREV_CONTROLLERS_AMOUNT=3
+      - NEXT_CONTROLLERS_AMOUNT=2
+      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  purchases_qty_by_store_id_and_user_id_reducer_3:
+    container_name: purchases_qty_by_store_id_and_user_id_reducer_3
+    image: purchases_qty_by_store_id_and_user_id_reducer:latest
+    entrypoint: python3 -m controllers.reducers.purchases_qty_by_store_id_and_user_id_reducer.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=3
+      - RABBITMQ_HOST=rabbitmq-message-middleware
+      - PREV_CONTROLLERS_AMOUNT=3
+      - NEXT_CONTROLLERS_AMOUNT=2
+      - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
     networks:
       - custom_net
     depends_on:
@@ -787,7 +849,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=3
@@ -807,7 +869,7 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - PREV_CONTROLLERS_AMOUNT=2
+      - PREV_CONTROLLERS_AMOUNT=4
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=3
@@ -832,7 +894,6 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -851,7 +912,6 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -870,7 +930,6 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -889,7 +948,6 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -905,7 +963,24 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - OUTPUT_BUILDERS_AMOUNT=1
+      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
+      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
+      - NEXT_CONTROLLERS_AMOUNT=1
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  transactions_with_stores_query_3x_joiner_1:
+    container_name: transactions_with_stores_query_3x_joiner_1
+    image: transactions_with_stores_query_3x_joiner:latest
+    entrypoint: python3 -m controllers.joiners.transactions_with_stores_joiner.transactions_with_stores_query_3x_joiner.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=1
+      - RABBITMQ_HOST=rabbitmq-message-middleware
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
@@ -925,11 +1000,27 @@ services:
       - LOGGING_LEVEL=${LOGGING_LEVEL}
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
-      - OUTPUT_BUILDERS_AMOUNT=1
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
-      - HEALTH_LISTEN_PORT=9201
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  transactions_with_stores_query_3x_joiner_1:
+    container_name: transactions_with_stores_query_3x_joiner_1
+    image: transactions_with_stores_query_3x_joiner:latest
+    entrypoint: python3 -m controllers.joiners.transactions_with_stores_joiner.transactions_with_stores_query_3x_joiner.main
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CONTROLLER_ID=1
+      - RABBITMQ_HOST=rabbitmq-message-middleware
+      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
+      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
+      - NEXT_CONTROLLERS_AMOUNT=1
     networks:
       - custom_net
     depends_on:
@@ -1058,7 +1149,6 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1075,7 +1165,6 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1092,7 +1181,6 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
-      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:

@@ -1,5 +1,7 @@
 class SortedDescData:
 
+    # ============================== INITIALIZE ============================== #
+
     def __init__(
         self,
         grouping_key: str,
@@ -15,6 +17,8 @@ class SortedDescData:
         self._amount_per_group = amount_per_group
 
         self._sorted_desc_by_grouping_key: dict[str, list[dict[str, str]]] = {}
+
+    # ============================== MANAGING ============================== #
 
     def add_batch_item_keeping_sort_desc(self, batch_item: dict[str, str]) -> None:
         grouping_key_value = batch_item[self._grouping_key]
@@ -42,12 +46,24 @@ class SortedDescData:
         if len(sorted_desc_batch_items) > self._amount_per_group:
             sorted_desc_batch_items.pop()
 
+    def replace(
+        self, sorted_desc_by_grouping_key: dict[str, list[dict[str, str]]]
+    ) -> None:
+        self._sorted_desc_by_grouping_key = sorted_desc_by_grouping_key
+
+    # ============================== ACCESSING ============================== #
+
     def pop_next_batch_item(self) -> dict[str, str]:
         key = next(iter(self._sorted_desc_by_grouping_key))
         batch_item = self._sorted_desc_by_grouping_key[key].pop(0)
         if not self._sorted_desc_by_grouping_key[key]:
             del self._sorted_desc_by_grouping_key[key]
         return batch_item
+
+    def to_dict(self) -> dict[str, list[dict[str, str]]]:
+        return self._sorted_desc_by_grouping_key.copy()
+
+    # ============================== TESTING ============================== #
 
     def is_empty(self) -> bool:
         return len(self._sorted_desc_by_grouping_key.keys()) == 0

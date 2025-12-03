@@ -24,7 +24,7 @@ def main():
     years_to_keep = [int(year) for year in year_list]
 
     consumers_config = {
-        "queue_name_prefix": constants.CLEANED_TIT_QUEUE_PREFIX,
+        "queue_name_prefix": constants.CLEANED_TIT_2X_QUEUE_PREFIX,
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {

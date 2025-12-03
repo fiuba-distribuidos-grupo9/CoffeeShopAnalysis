@@ -7,6 +7,7 @@ from controllers.joiners.shared.base_data_handler import BaseDataHandler
 from controllers.joiners.shared.stream_data_handler import StreamDataHandler
 from controllers.shared.controller import Controller
 from middleware.middleware import MessageMiddleware
+from shared.communication_protocol.batch_message import BatchMessage
 
 
 class Joiner(Controller):
@@ -28,7 +29,7 @@ class Joiner(Controller):
         raise NotImplementedError("subclass responsibility")
 
     @abstractmethod
-    def _build_mom_producer(
+    def _build_mom_producer_using(
         self,
         rabbitmq_host: str,
         producers_config: dict[str, Any],
@@ -41,6 +42,7 @@ class Joiner(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
+        # do nothing
         pass
 
     def _init_mom_producers(
@@ -48,6 +50,7 @@ class Joiner(Controller):
         rabbitmq_host: str,
         producers_config: dict[str, Any],
     ) -> None:
+        # do nothing
         pass
 
     def __init__(
@@ -69,10 +72,10 @@ class Joiner(Controller):
         self._consumers_config = consumers_config
         self._producers_config = producers_config
 
-        self._base_data_by_session_id = {}
+        self._base_data_by_session_id: dict[str, list[BatchMessage]] = {}
         self._base_data_by_session_id_lock = threading.Lock()
 
-        self._all_base_data_received = {}
+        self._all_base_data_received: dict[str, bool] = {}
         self._all_base_data_received_lock = threading.Lock()
 
         self._base_data_handler: Optional[BaseDataHandler] = None
@@ -139,7 +142,7 @@ class Joiner(Controller):
                 consumers_config=self._consumers_config,
                 producers_config=self._producers_config,
                 build_mom_consumer=self._build_mom_stream_data_consumer,
-                build_mom_producer=self._build_mom_producer,
+                build_mom_producer=self._build_mom_producer_using,
                 base_data_by_session_id=self._base_data_by_session_id,
                 base_data_by_session_id_lock=self._base_data_by_session_id_lock,
                 all_base_data_received=self._all_base_data_received,

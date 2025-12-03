@@ -1,8 +1,12 @@
+import logging
 from typing import Any
 
 from controllers.cleaners.shared.cleaner import Cleaner
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.message import Message
+from shared.simple_hash import simple_hash
 
 
 class TransactionItemsCleaner(Cleaner):
@@ -16,6 +20,20 @@ class TransactionItemsCleaner(Cleaner):
         queue_name = f"{queue_name_prefix}-{producer_id}"
         return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
 
+    def _init_mom_producers(
+        self,
+        rabbitmq_host: str,
+        producers_config: dict[str, Any],
+    ) -> None:
+        self._mom_producers: list[MessageMiddleware] = []
+
+        next_controllers_amount = producers_config["next_controllers_amount"]
+        for producer_id in range(next_controllers_amount):
+            mom_producer = self._build_mom_producer_using(
+                rabbitmq_host, producers_config, producer_id
+            )
+            self._mom_producers.append(mom_producer)
+
     # ============================== PRIVATE - ACCESSING ============================== #
 
     def _columns_to_keep(self) -> list[str]:
@@ -28,10 +46,19 @@ class TransactionItemsCleaner(Cleaner):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next(self, message: str) -> None:
-        mom_producer = self._mom_producers[self._current_producer_id]
-        mom_producer.send(message)
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(self._mom_producers)
+        mom_producer = self._mom_producers[hash]
+        mom_producer.send(str(message))
 
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers:
+            mom_producer.send(str(message))
+
+    # ============================== PRIVATE - RUN ============================== #
+
+    def _close_all_producers(self) -> None:
+        for mom_producer in self._mom_producers:
+            mom_producer.close()
+            logging.debug("action: mom_producer_close | result: success")

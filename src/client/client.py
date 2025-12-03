@@ -5,7 +5,11 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable
 
-from shared import communication_protocol, constants, shell_cmd
+from shared import constants, shell_cmd
+from shared.communication_protocol import constants as cp_constants
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.eof_message import EOFMessage
+from shared.communication_protocol.handshake_message import HandshakeMessage, Message
 
 
 class Client:
@@ -104,19 +108,13 @@ class Client:
             self._log_debug(
                 f"action: receive_chunk | result: success | chunk size: {len(chunk)}"
             )
-            if chunk.endswith(communication_protocol.MSG_END_DELIMITER.encode("utf-8")):
+            if chunk.endswith(cp_constants.MSG_END_DELIMITER.encode("utf-8")):
                 all_data_received = True
 
-            if communication_protocol.MSG_END_DELIMITER.encode("utf-8") in chunk:
-                index = chunk.rindex(
-                    communication_protocol.MSG_END_DELIMITER.encode("utf-8")
-                )
-                bytes_received += chunk[
-                    : index + len(communication_protocol.MSG_END_DELIMITER)
-                ]
-                self._temp_buffer = chunk[
-                    index + len(communication_protocol.MSG_END_DELIMITER) :
-                ]
+            if cp_constants.MSG_END_DELIMITER.encode("utf-8") in chunk:
+                index = chunk.rindex(cp_constants.MSG_END_DELIMITER.encode("utf-8"))
+                bytes_received += chunk[: index + len(cp_constants.MSG_END_DELIMITER)]
+                self._temp_buffer = chunk[index + len(cp_constants.MSG_END_DELIMITER) :]
                 all_data_received = True
             else:
                 bytes_received += chunk
@@ -178,22 +176,23 @@ class Client:
     # ============================== PRIVATE - SEND/RECV HANDSHAKE ============================== #
 
     def _send_handshake_message(self) -> None:
-        handshake_message = communication_protocol.encode_handshake_message(
-            str(self._client_id), communication_protocol.ALL_QUERIES
+        handshake_message = HandshakeMessage(
+            str(self._client_id), cp_constants.ALL_QUERIES
         )
-        self._socket_send_message(self._client_socket, handshake_message)
+        self._socket_send_message(self._client_socket, str(handshake_message))
         self._log_info(f"action: send_handshake | result: success")
 
     def _receive_handshake_ack_message(self) -> None:
         received_message = self._socket_receive_message(self._client_socket)
-        self._session_id, client_id = communication_protocol.decode_handshake_message(
-            received_message
-        )
+
+        handshake_message = HandshakeMessage.from_str(received_message)
+        client_id = handshake_message.payload()
         if client_id != str(self._client_id):
             raise ValueError(
                 f"Handshake ACK message error: expected client_id {self._client_id}, received {client_id}"
             )
 
+        self._session_id = handshake_message.id()
         self._log_info(f"action: receive_handshake_ack | result: success")
 
     # ============================== PRIVATE - SEND DATA ============================== #
@@ -202,25 +201,30 @@ class Client:
         self,
         folder_name: str,
         file: TextIOWrapper,
-        encoding_callback: Callable,
+        message_type: str,
     ) -> None:
         column_names_line = file.readline().strip()
         column_names = column_names_line.split(",")
 
-        batch = self._read_next_batch_from_file(file, column_names)
-        while len(batch) != 0 and self._is_running():
+        batch_items = self._read_next_batch_from_file(file, column_names)
+        while len(batch_items) != 0 and self._is_running():
             self._log_debug(f"action: {folder_name}_batch | result: in_progress")
-            message = encoding_callback(self._session_id, batch)
-            self._socket_send_message(self._client_socket, message)
+            message = BatchMessage(
+                message_type=message_type,
+                session_id=self._session_id,
+                message_id=None,
+                controller_id=None,
+                batch_items=batch_items,
+            )
+            self._socket_send_message(self._client_socket, str(message))
             self._log_debug(f"action: {folder_name}_batch | result: success")
 
-            batch = self._read_next_batch_from_file(file, column_names)
+            batch_items = self._read_next_batch_from_file(file, column_names)
 
     def _send_data_from_all_files_using_batchs(
         self,
         folder_name: str,
         message_type: str,
-        encoding_callback: Callable,
     ) -> None:
         for file_path in self._folder_path(folder_name).iterdir():
             if not file_path.name.lower().endswith(".csv"):
@@ -234,7 +238,7 @@ class Client:
                 self._send_data_from_file_using_batchs(
                     folder_name,
                     csv_file,
-                    encoding_callback,
+                    message_type,
                 )
             finally:
                 csv_file.close()
@@ -242,77 +246,76 @@ class Client:
                     f"action: {folder_name}_file_close | result: success | file: {file_path}"
                 )
 
-        eof_message = communication_protocol.encode_eof_message(
-            self._session_id, message_type
+        eof_message = EOFMessage(
+            session_id=self._session_id,
+            message_id=None,
+            controller_id=None,
+            batch_message_type=message_type,
         )
-        self._socket_send_message(self._client_socket, eof_message)
+        self._socket_send_message(self._client_socket, str(eof_message))
         self._log_info(f"action: {folder_name}_all_files_sent | result: success")
 
     def _send_all_menu_items(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.MIT_FOLDER_NAME,
-            communication_protocol.MENU_ITEMS_BATCH_MSG_TYPE,
-            communication_protocol.encode_menu_items_batch_message,
+            cp_constants.MENU_ITEMS_BATCH_MSG_TYPE,
         )
 
     def _send_all_stores(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.STR_FOLDER_NAME,
-            communication_protocol.STORES_BATCH_MSG_TYPE,
-            communication_protocol.encode_stores_batch_message,
+            cp_constants.STORES_BATCH_MSG_TYPE,
         )
 
     def _send_all_transaction_items(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.TIT_FOLDER_NAME,
-            communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
-            communication_protocol.encode_transaction_items_batch_message,
+            cp_constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE,
         )
 
     def _send_all_transactions(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.TRN_FOLDER_NAME,
-            communication_protocol.TRANSACTIONS_BATCH_MSG_TYPE,
-            communication_protocol.encode_transactions_batch_message,
+            cp_constants.TRANSACTIONS_BATCH_MSG_TYPE,
         )
 
     def _send_all_users(self) -> None:
         self._send_data_from_all_files_using_batchs(
             constants.USR_FOLDER_NAME,
-            communication_protocol.USERS_BATCH_MSG_TYPE,
-            communication_protocol.encode_users_batch_message,
+            cp_constants.USERS_BATCH_MSG_TYPE,
         )
 
     def _send_all_data(self) -> None:
         # WARNING: do not modify order
         self._send_all_menu_items()
         self._send_all_stores()
-        self._send_all_users()
         self._send_all_transactions()
+        self._send_all_users()
         self._send_all_transaction_items()
         self._log_info(f"action: all_data_sent | result: success")
 
     # ============================== PRIVATE - SEND DATA ============================== #
 
-    def _handle_query_result_message(self, message: str, message_type: str) -> None:
+    def _handle_query_result_message(self, message: BatchMessage) -> None:
+        message_type = message.message_type()
         self._log_debug(
             f"action: {message_type}_receive_query_result | result: success"
         )
         file_name = (
             f"client_{self._client_id}__{self._session_id}__{message_type}_result.txt"
         )
-        for item_batch in communication_protocol.decode_batch_message(message):
+        for batch_item in message.batch_items():
             shell_cmd.shell_silent(
-                f"echo '{",".join(item_batch.values())}' >> {self._output_path / file_name}"
+                f"echo '{",".join(batch_item.values())}' >> {self._output_path / file_name}"
             )
             self._log_debug(
                 f"action: {message_type}_save_query_result | result: success | file: {file_name}",
             )
 
     def _handle_query_result_eof_message(
-        self, message: str, all_eof_received: dict
+        self, message: EOFMessage, all_eof_received: dict
     ) -> None:
-        data_type = communication_protocol.decode_eof_message(message)
+        data_type = message.batch_message_type()
         if data_type not in all_eof_received:
             raise ValueError(f"Unknown EOF message type {data_type}")
 
@@ -321,29 +324,18 @@ class Client:
             f"action: eof_{data_type}_receive_query_result | result: success"
         )
 
-    def _handle_server_message(self, message: str, all_eof_received: dict) -> None:
-        message_type = communication_protocol.get_message_type(message)
-        session_id = communication_protocol.get_message_session_id(message)
-        if session_id != self._session_id:
-            raise ValueError(
-                f"Session ID mismatch: expected {self._session_id}, received {session_id}"
-            )
-
-        match message_type:
-            case (
-                communication_protocol.QUERY_RESULT_1X_MSG_TYPE
-                | communication_protocol.QUERY_RESULT_21_MSG_TYPE
-                | communication_protocol.QUERY_RESULT_22_MSG_TYPE
-                | communication_protocol.QUERY_RESULT_3X_MSG_TYPE
-                | communication_protocol.QUERY_RESULT_4X_MSG_TYPE
-            ):
-                self._handle_query_result_message(message, message_type)
-            case communication_protocol.EOF:
-                self._handle_query_result_eof_message(message, all_eof_received)
-            case _:
+    def _handle_server_message(self, message: Message, all_eof_received: dict) -> None:
+        if isinstance(message, BatchMessage) or isinstance(message, EOFMessage):
+            session_id = message.session_id()
+            if session_id != self._session_id:
                 raise ValueError(
-                    f'Invalid message type received from server "{message_type}"'
+                    f"Session ID mismatch: expected {self._session_id}, received {session_id}"
                 )
+
+        if isinstance(message, BatchMessage):
+            self._handle_query_result_message(message)
+        elif isinstance(message, EOFMessage):
+            self._handle_query_result_eof_message(message, all_eof_received)
 
     def _with_each_message_do(
         self,
@@ -352,14 +344,14 @@ class Client:
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        messages = received_message.split(communication_protocol.MSG_END_DELIMITER)
+        messages = received_message.split(cp_constants.MSG_END_DELIMITER)
         for message in messages:
             if not self._is_running():
                 break
             if message == "":
                 continue
-            message += communication_protocol.MSG_END_DELIMITER
-            callback(message, *args, **kwargs)
+            message += cp_constants.MSG_END_DELIMITER
+            callback(Message.suitable_for_str(message), *args, **kwargs)
 
     def _receive_all_query_results_from_server(self) -> None:
         all_eof_received = {

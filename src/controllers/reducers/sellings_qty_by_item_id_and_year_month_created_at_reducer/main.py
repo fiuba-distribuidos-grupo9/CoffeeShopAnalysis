@@ -21,8 +21,7 @@ def main():
     logging.info(f"action: init_config | result: success | params: {config_params}")
 
     consumers_config = {
-        "exchange_name_prefix": constants.MAPPED_YEAR_MONTH_TIT_EXHCHANGE_PREFIX,
-        "routing_key_prefix": constants.MAPPED_YEAR_MONTH_TIT_ROUTING_KEY_PREFIX,
+        "queue_name_prefix": constants.MAPPED_YEAR_MONTH_TIT_21_QUEUE_PREFIX,
         "prev_controllers_amount": int(config_params["PREV_CONTROLLERS_AMOUNT"]),
     }
     producers_config = {

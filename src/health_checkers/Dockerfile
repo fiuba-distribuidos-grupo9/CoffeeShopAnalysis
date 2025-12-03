@@ -1,6 +1,6 @@
 FROM python:3.13-slim
 
-WORKDIR /app
+# WORKDIR /app
 
 COPY src/health_checkers/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
@@ -11,6 +11,6 @@ COPY src/shared /app/shared
 COPY src/health_checkers/scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-ENV PYTHONUNBUFFERED=1
+# ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# ENTRYPOINT ["/app/entrypoint.sh"]

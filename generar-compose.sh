@@ -127,14 +127,6 @@ function add-server-service() {
   add-line $compose_file '    depends_on:'
   add-line $compose_file '      rabbitmq-message-middleware:'
   add-line $compose_file '        condition: service_healthy'
-  add-line $compose_file '      transaction_items_with_menu_items_query_21_joiner_0:'
-  add-line $compose_file '        condition: service_started'
-  add-line $compose_file '      transaction_items_with_menu_items_query_22_joiner_0:'
-  add-line $compose_file '        condition: service_started'
-  add-line $compose_file '      transactions_with_stores_query_3x_joiner_0:'
-  add-line $compose_file '        condition: service_started'
-  add-line $compose_file '      transactions_with_stores_query_4x_joiner_0:'
-  add-line $compose_file '        condition: service_started'
 }
 
 # ============================== PRIVATE - CLEANERS ============================== #
@@ -723,8 +715,7 @@ function add-transactions-with-stores-q3x-joiner(){
   add-line $compose_file '      - LOGGING_LEVEL=${LOGGING_LEVEL}'
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
-  add-line $compose_file "      - OUTPUT_BUILDERS_AMOUNT=$Q3X_OB_AMOUNT"
-  add-line $compose_file '      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1' 
+  add-line $compose_file "      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1"
   add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q3_REDUCERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q3X_OB_AMOUNT"
   add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
@@ -771,7 +762,7 @@ function add-transactions-with-users-q4x-joiner(){
   add-line $compose_file "      - CONTROLLER_ID=$current_id"
   add-line $compose_file '      - RABBITMQ_HOST=rabbitmq-message-middleware'
   add-line $compose_file "      - BASE_DATA_PREV_CONTROLLERS_AMOUNT=$USERS_CLN_AMOUNT"
-  add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_REDUCERS_AMOUNT"
+  add-line $compose_file "      - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=$Q4_SORTERS_AMOUNT"
   add-line $compose_file "      - NEXT_CONTROLLERS_AMOUNT=$Q4_TRANSACTIONS_WITH_STORES_JOINERS_AMOUNT"
   add-line $compose_file "      - HEALTH_LISTEN_PORT=$HEALTH_LISTEN_PORT"
   add-line $compose_file '    networks:'
@@ -1096,7 +1087,6 @@ function add-services() {
 
   add-comment $compose_file 'CLEANERS SERVICES'
   add-cleaners $compose_file
-  add-empty-line $compose_file
 
   add-comment $compose_file 'FILTERS SERVICES'
   add-filters $compose_file

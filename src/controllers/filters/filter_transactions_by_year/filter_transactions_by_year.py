@@ -3,11 +3,10 @@ from typing import Any
 
 from controllers.filters.shared.filter import Filter
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
-from shared import communication_protocol
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.message import Message
+from shared.simple_hash import simple_hash
 
 
 class FilterTransactionsByYear(Filter):
@@ -24,18 +23,37 @@ class FilterTransactionsByYear(Filter):
         return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
 
     def _build_mom_producer_using(
+        self, rabbitmq_host: str, producers_config: dict[str, Any], producer_id: int
+    ) -> tuple[MessageMiddleware, MessageMiddleware]:
+        queue_name_prefix_1 = producers_config["queue_name_prefix_1"]
+        queue_name_1 = f"{queue_name_prefix_1}-{producer_id}"
+        mom_producer_1 = RabbitMQMessageMiddlewareQueue(
+            host=rabbitmq_host, queue_name=queue_name_1
+        )
+
+        queue_name_prefix_2 = producers_config["queue_name_prefix_2"]
+        queue_name_2 = f"{queue_name_prefix_2}-{producer_id}"
+        mom_producer_2 = RabbitMQMessageMiddlewareQueue(
+            host=rabbitmq_host, queue_name=queue_name_2
+        )
+        return (mom_producer_1, mom_producer_2)
+
+    def _init_mom_producers(
         self,
         rabbitmq_host: str,
         producers_config: dict[str, Any],
-        producer_id: int,
-    ) -> MessageMiddleware:
-        exchange_name = producers_config["exchange_name_prefix"]
-        routing_key = f"{producers_config["routing_key_prefix"]}.{producer_id}"
-        return RabbitMQMessageMiddlewareExchange(
-            host=rabbitmq_host,
-            exchange_name=exchange_name,
-            route_keys=[routing_key],
-        )
+    ) -> None:
+        self._mom_producers_1: list[MessageMiddleware] = []
+        self._mom_producers_2: list[MessageMiddleware] = []
+
+        self.next_controllers_amount_1 = producers_config["next_controllers_amount_1"]
+        self.next_controllers_amount_2 = producers_config["next_controllers_amount_2"]
+        for producer_id in range(self.next_controllers_amount_1):
+            (mom_producer_1, mom_producer_2) = self._build_mom_producer_using(
+                rabbitmq_host, producers_config, producer_id
+            )
+            self._mom_producers_1.append(mom_producer_1)
+            self._mom_producers_2.append(mom_producer_2)
 
     def __init__(
         self,
@@ -65,31 +83,65 @@ class FilterTransactionsByYear(Filter):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next(self, message: str) -> None:
-        batchs_by_hash: dict[int, list] = {}
+    def _mom_send_message_to_next_fairly(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
+        sharding_value = simple_hash(message.message_id())
+        hash = sharding_value % len(mom_producers)
+        mom_producer = mom_producers[hash]
+        mom_producer.send(str(message))
+
+    def _mom_send_message_to_next_sharding(
+        self, message: BatchMessage, mom_producers: list[MessageMiddleware]
+    ) -> None:
+        batch_items_by_hash: dict[int, list] = {}
         # [IMPORTANT] this must consider the next controller's grouping key
         sharding_key = "user_id"
 
-        message_type = communication_protocol.get_message_type(message)
-        session_id = communication_protocol.get_message_session_id(message)
-        for batch_item in communication_protocol.decode_batch_message(message):
+        for batch_item in message.batch_items():
             if batch_item[sharding_key] == "":
                 # [IMPORTANT] If sharding value is empty, the hash will fail
                 # but we are going to assign it to the first reducer anyway
                 hash = 0
-                batchs_by_hash.setdefault(hash, [])
-                batchs_by_hash[hash].append(batch_item)
+                batch_items_by_hash.setdefault(hash, [])
+                batch_items_by_hash[hash].append(batch_item)
                 continue
             sharding_value = int(float(batch_item[sharding_key]))
             batch_item[sharding_key] = str(sharding_value)
 
-            hash = sharding_value % len(self._mom_producers)
-            batchs_by_hash.setdefault(hash, [])
-            batchs_by_hash[hash].append(batch_item)
+            hash = sharding_value % len(mom_producers)
+            batch_items_by_hash.setdefault(hash, [])
+            batch_items_by_hash[hash].append(batch_item)
 
-        for hash, user_batch in batchs_by_hash.items():
-            mom_producer = self._mom_producers[hash]
-            message = communication_protocol.encode_batch_message(
-                message_type, session_id, user_batch
+        for hash, batch_items in batch_items_by_hash.items():
+            mom_producer = mom_producers[hash]
+            message = BatchMessage(
+                message_type=message.message_type(),
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+                batch_items=batch_items,
             )
-            mom_producer.send(message)
+            mom_producer.send(str(message))
+
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        self._mom_send_message_to_next_fairly(message, self._mom_producers_1)
+        self._mom_send_message_to_next_sharding(message, self._mom_producers_2)
+
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers_1:
+            mom_producer.send(str(message))
+
+        for mom_producer in self._mom_producers_2:
+            mom_producer.send(str(message))
+
+    # ============================== PRIVATE - RUN ============================== #
+
+    def _close_all_producers(self) -> None:
+        for mom_producer in self._mom_producers_1:
+            mom_producer.close()
+            logging.debug("action: mom_producer_close | result: success")
+
+        for mom_producer in self._mom_producers_2:
+            mom_producer.close()
+            logging.debug("action: mom_producer_close | result: success")

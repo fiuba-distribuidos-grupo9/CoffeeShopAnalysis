@@ -1,12 +1,12 @@
+import uuid
 from typing import Any
 
 from controllers.reducers.shared.reducer import Reducer
 from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_exchange import (
-    RabbitMQMessageMiddlewareExchange,
-)
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
-from shared import communication_protocol
+from shared.communication_protocol import constants
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.simple_hash import simple_hash
 
 
 class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
@@ -18,13 +18,9 @@ class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> MessageMiddleware:
-        exchange_name = consumers_config["exchange_name_prefix"]
-        routing_key = f"{consumers_config["routing_key_prefix"]}.{self._controller_id}"
-        return RabbitMQMessageMiddlewareExchange(
-            host=rabbitmq_host,
-            exchange_name=exchange_name,
-            route_keys=[routing_key],
-        )
+        queue_name_prefix = consumers_config["queue_name_prefix"]
+        queue_name = f"{queue_name_prefix}-{self._controller_id}"
+        return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
 
     def _build_mom_producer_using(
         self,
@@ -45,7 +41,7 @@ class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
         return "sellings_qty"
 
     def _message_type(self) -> str:
-        return communication_protocol.TRANSACTION_ITEMS_BATCH_MSG_TYPE
+        return constants.TRANSACTION_ITEMS_BATCH_MSG_TYPE
 
     # ============================== PRIVATE - HANDLE DATA ============================== #
 
@@ -56,38 +52,32 @@ class SellingsQtyByItemIdAndYearMonthCreatedAtReducer(Reducer):
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _simple_hash(self, value: str) -> int:
-        hash_value = 0
-        prime_multiplier = 31
-        for char in value:
-            char_value = ord(char)
-            hash_value = (hash_value * prime_multiplier) + char_value
-        return hash_value
-
-    def _mom_send_message_to_next(self, message: str) -> None:
-        batchs_by_hash: dict[int, list] = {}
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        batch_items_by_hash: dict[int, list] = {}
         # [IMPORTANT] this must consider the next controller's grouping key
         sharding_key = "year_month_created_at"
 
-        message_type = communication_protocol.get_message_type(message)
-        session_id = communication_protocol.get_message_session_id(message)
-        for batch_item in communication_protocol.decode_batch_message(message):
+        for batch_item in message.batch_items():
             if batch_item[sharding_key] == "":
                 # [IMPORTANT] If sharding value is empty, the hash will fail
                 # but we are going to assign it to the first reducer anyway
                 hash = 0
-                batchs_by_hash.setdefault(hash, [])
-                batchs_by_hash[hash].append(batch_item)
+                batch_items_by_hash.setdefault(hash, [])
+                batch_items_by_hash[hash].append(batch_item)
                 continue
-            sharding_value = self._simple_hash(batch_item[sharding_key])
+            sharding_value = simple_hash(batch_item[sharding_key])
 
             hash = sharding_value % len(self._mom_producers)
-            batchs_by_hash.setdefault(hash, [])
-            batchs_by_hash[hash].append(batch_item)
+            batch_items_by_hash.setdefault(hash, [])
+            batch_items_by_hash[hash].append(batch_item)
 
-        for hash, user_batch in batchs_by_hash.items():
+        for hash, batch_items in batch_items_by_hash.items():
             mom_producer = self._mom_producers[hash]
-            message = communication_protocol.encode_batch_message(
-                message_type, session_id, user_batch
+            message = BatchMessage(
+                message_type=message.message_type(),
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+                batch_items=batch_items,
             )
-            mom_producer.send(message)
+            mom_producer.send(str(message))

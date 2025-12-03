@@ -1,5 +1,5 @@
 from controllers.output_builders.shared.query_output_builder import QueryOutputBuilder
-from shared import communication_protocol
+from shared.communication_protocol import constants
 
 
 class Query1XOutputBuilder(QueryOutputBuilder):
@@ -10,4 +10,4 @@ class Query1XOutputBuilder(QueryOutputBuilder):
         return ["transaction_id", "final_amount"]
 
     def _output_message_type(self) -> str:
-        return communication_protocol.QUERY_RESULT_1X_MSG_TYPE
+        return constants.QUERY_RESULT_1X_MSG_TYPE

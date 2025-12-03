@@ -1,10 +1,22 @@
 import logging
 from abc import abstractmethod
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any, Optional
 
 from controllers.shared.controller import Controller
 from middleware.middleware import MessageMiddleware
-from shared import communication_protocol
+from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.duplicate_message_checker import (
+    DuplicateMessageChecker,
+)
+from shared.communication_protocol.eof_message import EOFMessage
+from shared.communication_protocol.message import Message
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.prev_controllers_last_message import (
+    PrevControllersLastMessage,
+)
 
 
 class Filter(Controller):
@@ -24,35 +36,81 @@ class Filter(Controller):
         rabbitmq_host: str,
         consumers_config: dict[str, Any],
     ) -> None:
-        self._eof_recv_from_prev_controllers = {}
+        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
         self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
         self._mom_consumer = self._build_mom_consumer_using(
             rabbitmq_host, consumers_config
         )
 
-    @abstractmethod
-    def _build_mom_producer_using(
+    def __init__(
         self,
+        controller_id: int,
         rabbitmq_host: str,
-        producers_config: dict[str, Any],
-        producer_id: int,
-    ) -> MessageMiddleware:
-        raise NotImplementedError("subclass responsibility")
-
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
+        consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
     ) -> None:
-        self._current_producer_id = 0
-        self._mom_producers: list[MessageMiddleware] = []
+        super().__init__(
+            controller_id,
+            rabbitmq_host,
+            consumers_config,
+            producers_config,
+        )
 
-        next_controllers_amount = producers_config["next_controllers_amount"]
-        for producer_id in range(next_controllers_amount):
-            mom_producer = self._build_mom_producer_using(
-                rabbitmq_host, producers_config, producer_id
+        self._prev_controllers_last_message: dict[int, Message] = {}
+        self._duplicate_message_checker = DuplicateMessageChecker(self)
+
+        self._metadata_file_name = Path("metadata.txt")
+        self._metadata_reader = MetadataReader()
+        self._atomic_writer = AtomicWriter()
+
+    # ============================== PRIVATE - ACCESSING ============================== #
+
+    def update_last_message(self, message: Message, controller_id: int) -> None:
+        self._prev_controllers_last_message[controller_id] = message
+
+    def last_message_of(self, controller_id: int) -> Optional[Message]:
+        return self._prev_controllers_last_message.get(controller_id)
+
+    # ============================== PRIVATE - MANAGING STATE ============================== #
+
+    def _load_last_state(self) -> None:
+        path = self._metadata_file_name
+        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+
+        metadata_sections = self._metadata_reader.read_from(path)
+        for metadata_section in metadata_sections:
+            # @TODO: visitor pattern can be used here
+            if isinstance(metadata_section, PrevControllersLastMessage):
+                self._prev_controllers_last_message = (
+                    metadata_section.prev_controllers_last_message()
+                )
+            elif isinstance(metadata_section, PrevControllersEOFRecv):
+                self._prev_controllers_eof_recv = (
+                    metadata_section.prev_controllers_eof_recv()
+                )
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
+                )
+
+        logging.info(f"action: load_last_state | result: success | file: {path}")
+
+    def _load_last_state_if_exists(self) -> None:
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            self._load_last_state()
+        else:
+            logging.info(
+                f"action: load_last_state_skipped | result: success | file: {path}"
             )
-            self._mom_producers.append(mom_producer)
+
+    def _save_current_state(self) -> None:
+        metadata_sections = [
+            PrevControllersLastMessage(self._prev_controllers_last_message),
+            PrevControllersEOFRecv(self._prev_controllers_eof_recv),
+        ]
+        metadata_sections_str = "".join([str(section) for section in metadata_sections])
+        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -66,73 +124,62 @@ class Filter(Controller):
     def _should_be_included(self, batch_item: dict[str, str]) -> bool:
         raise NotImplementedError("subclass responsibility")
 
-    def _transform_batch_message_using(
-        self,
-        message: str,
-        decoder: Callable,
-        encoder: Callable,
-        message_type: str,
-        session_id: str,
-    ) -> str:
-        new_batch = []
-        for item in decoder(message):
-            if self._should_be_included(item):
-                new_batch.append(item)
-        return str(encoder(message_type, session_id, new_batch))
-
-    def _transform_batch_message(self, message: str) -> str:
-        return self._transform_batch_message_using(
-            message,
-            communication_protocol.decode_batch_message,
-            communication_protocol.encode_batch_message,
-            communication_protocol.get_message_type(message),
-            communication_protocol.get_message_session_id(message),
-        )
+    def _transform_batch_message(self, message: BatchMessage) -> BatchMessage:
+        updated_batch_items = []
+        for batch_item in message.batch_items():
+            if self._should_be_included(batch_item):
+                updated_batch_items.append(batch_item)
+        message.update_batch_items(updated_batch_items)
+        return message
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
-    def _mom_send_message_to_next(self, message: str) -> None:
-        mom_producer = self._mom_producers[self._current_producer_id]
-        mom_producer.send(message)
+    def is_duplicate_message(self, message: Message) -> bool:
+        return self._duplicate_message_checker.is_duplicated(message)
 
-        self._current_producer_id += 1
-        if self._current_producer_id >= len(self._mom_producers):
-            self._current_producer_id = 0
+    @abstractmethod
+    def _mom_send_message_to_next(self, message: BatchMessage) -> None:
+        raise NotImplementedError("subclass responsibility")
 
-    def _handle_data_batch_message(self, message: str) -> None:
-        output_message = self._transform_batch_message(message)
-        if not communication_protocol.message_without_payload(output_message):
-            self._mom_send_message_to_next(output_message)
+    def _handle_data_batch_message(self, message: BatchMessage) -> None:
+        updated_message = self._transform_batch_message(message)
+        if len(updated_message.batch_items()) > 0:
+            message.update_controller_id(str(self._controller_id))
+            self._mom_send_message_to_next(updated_message)
+
+    @abstractmethod
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        raise NotImplementedError("subclass responsibility")
 
     def _clean_session_data_of(self, session_id: str) -> None:
         logging.info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._eof_recv_from_prev_controllers[session_id]
+        del self._prev_controllers_eof_recv[session_id]
 
         logging.info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
-    def _handle_data_batch_eof(self, message: str) -> None:
-        session_id = communication_protocol.get_message_session_id(message)
-        self._eof_recv_from_prev_controllers.setdefault(session_id, 0)
-        self._eof_recv_from_prev_controllers[session_id] += 1
-        logging.debug(
+    def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
+        session_id = message.session_id()
+        prev_controller_id = message.controller_id()
+        self._prev_controllers_eof_recv.setdefault(
+            session_id, [False for _ in range(self._prev_controllers_amount)]
+        )
+        self._prev_controllers_eof_recv[session_id][int(prev_controller_id)] = True
+        logging.info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        if (
-            self._eof_recv_from_prev_controllers[session_id]
-            == self._prev_controllers_amount
-        ):
+        if all(self._prev_controllers_eof_recv[session_id]):
             logging.info(
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
 
-            for mom_producer in self._mom_producers:
-                mom_producer.send(message)
+            message.update_controller_id(str(self._controller_id))
+            self._mom_send_message_through_all_producers(message)
             logging.info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )
@@ -144,23 +191,31 @@ class Filter(Controller):
             self._mom_consumer.stop_consuming()
             return
 
-        message = message_as_bytes.decode("utf-8")
-        message_type = communication_protocol.get_message_type(message)
-        if message_type != communication_protocol.EOF:
-            self._handle_data_batch_message(message)
+        message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
+        if not self.is_duplicate_message(message):
+            if isinstance(message, BatchMessage):
+                self._handle_data_batch_message(message)
+            elif isinstance(message, EOFMessage):
+                self._handle_data_batch_eof_message(message)
+            self._save_current_state()
         else:
-            self._handle_data_batch_eof(message)
+            logging.info(
+                f"action: duplicate_message_ignored | result: success | message: {message}"
+            )
 
     # ============================== PRIVATE - RUN ============================== #
 
     def _run(self) -> None:
         super()._run()
+        self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_received_data)
 
+    @abstractmethod
+    def _close_all_producers(self) -> None:
+        raise NotImplementedError("subclass responsibility")
+
     def _close_all(self) -> None:
-        for mom_producer in self._mom_producers:
-            mom_producer.close()
-            logging.debug("action: mom_producer_producer_close | result: success")
+        self._close_all_producers()
 
         self._mom_consumer.delete()
         self._mom_consumer.close()

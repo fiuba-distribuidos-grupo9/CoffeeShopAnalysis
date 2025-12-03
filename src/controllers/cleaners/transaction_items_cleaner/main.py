@@ -22,7 +22,7 @@ def main():
         "queue_name_prefix": constants.DIRTY_TIT_QUEUE_PREFIX,
     }
     producers_config = {
-        "queue_name_prefix": constants.CLEANED_TIT_QUEUE_PREFIX,
+        "queue_name_prefix": constants.CLEANED_TIT_2X_QUEUE_PREFIX,
         "next_controllers_amount": int(config_params["NEXT_CONTROLLERS_AMOUNT"]),
     }
 
