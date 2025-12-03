@@ -1063,6 +1063,7 @@ function add-health-checkers() {
     add-line $compose_file '    depends_on:'
     add-line $compose_file '      rabbitmq-message-middleware:'
     add-line $compose_file '        condition: service_healthy'
+    add-empty-line $compose_file
   done
 
 }
@@ -1107,7 +1108,7 @@ function add-services() {
   add-output-builders $compose_file
 
   # add-comment $compose_file 'HEALTH CHECKERS SERVICES'
-  # add-health-checkers
+  add-health-checkers
 }
 
 # ============================== PRIVATE - NETWORKS ============================== #

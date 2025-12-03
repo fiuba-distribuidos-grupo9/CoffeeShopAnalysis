@@ -1,6 +1,7 @@
 # Imports.
 from __future__ import annotations
 import logging
+import signal
 import threading
 import time
 from typing import Optional, List
@@ -44,8 +45,19 @@ class Node:
         self._leader_check_failures = 0
         self._max_leader_check_failures = 3
         self._leader_check_lock = threading.Lock()
+
+        self._shutdown_event = threading.Event()
+        signal.signal(signal.SIGTERM, self._handle_sigterm_signal)
         
         logging.info(f"action: Node startup | result: success | node_id: {cfg.node_id}")
+
+    # Signal handling methods
+    def _handle_sigterm_signal(self, signum, frame) -> None:
+        self._shutdown_event.set()
+        self.stop()
+
+    def shutdown_requested(self) -> bool:
+        return self._shutdown_event.is_set()
 
     # Public methods.
     def start(self) -> None:
@@ -55,25 +67,26 @@ class Node:
                 return
 
             self._running = True
-        
+            self._shutdown_event.clear()
+
         self._election_recv_thread = threading.Thread(
             target=self._election_recv_loop,
             name=f"Node-ElectionRecv-{self.cfg.node_id}",
-            daemon=True
+            daemon=False
         )
         self._election_recv_thread.start()
         
         self._health_recv_thread = threading.Thread(
             target=self._health_recv_loop,
             name=f"Node-HealthRecv-{self.cfg.node_id}",
-            daemon=True
+            daemon=False
         )
         self._health_recv_thread.start()
 
         self._health_send_thread = threading.Thread(
             target=self._health_loop,
             name=f"Node-HealthSend-{self.cfg.node_id}",
-            daemon=True
+            daemon=False
         )
         self._health_send_thread.start()
         
@@ -119,9 +132,11 @@ class Node:
         self.start()
         if self._election_recv_thread:
             try:
-                self._election_recv_thread.join()
+                while not self._shutdown_event.is_set():
+                    time.sleep(1.0)
             except KeyboardInterrupt:
-                pass
+                logging.info(f"action: keyboard_interrupt | result: caught")
+            self._shutdown_event.set()
     
     def is_leader(self) -> bool:
         return self.election.leader_id == self.cfg.node_id
@@ -247,6 +262,8 @@ class Node:
         
         attempts = 0
         while attempts < max_attempts:
+            if self._shutdown_event.is_set():
+                return False
             with self._lock:
                 if not self._peers:
                     return False
@@ -276,7 +293,7 @@ class Node:
     def _election_recv_loop(self) -> None:
         logging.info(f"action: election_recv_loop startup | result: success")
         try:
-            while self._running:
+            while self._running and not self._shutdown_event.is_set():
                 result = self._election_socket.receive_message()
                 if result is None:
                     continue
@@ -304,7 +321,7 @@ class Node:
     # Health check methods.
     def _health_recv_loop(self) -> None:
         logging.info(f"action: health_recv_loop startup | result: success")
-        while self._running:
+        while self._running and not self._shutdown_event.is_set():
             result = self._health_socket.receive_message()
             if result is None:
                 continue
@@ -359,7 +376,7 @@ class Node:
         logging.info(f"action: _health_send_thread startup | result: success")
         interval_s = self.cfg.heartbeat_interval_ms / 1000.0
 
-        while self._running:
+        while self._running and not self._shutdown_event.is_set():
             if self.is_leader():
                 with self._leader_check_lock:
                     if self._leader_check_failures != 0:
@@ -387,6 +404,9 @@ class Node:
                 self._check_leader_alive()
     
     def _send_heartbeat_with_retry(self, target: ControllerTarget) -> bool:
+        if self._shutdown_event.is_set():
+            return False
+        
         timeout_s = self.cfg.heartbeat_timeout_ms / 1000.0
         max_retries = self.cfg.heartbeat_max_retries
         msg = Message(
