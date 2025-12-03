@@ -1,7 +1,5 @@
 ToDo list (backlog):
-- que el controller tenga dos procesos, uno escuchando el heartbeat y el otro haciendo lo de siempre, ambos controlados (lo mismo para el server)
 - cada controller tiene que limpiar todo lo referido a la session y pasar el mensaje a todos los siguientes
-- actualizar el rabbit para que persista siempre los mensajes
 
 - use _log functions on controllers
 - deberiamos imprimir lo que se va cargando de la metadata, total es una unica vez que se hace

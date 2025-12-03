@@ -117,7 +117,6 @@ class Controller(ABC):
                 )
 
                 if exitcode != 0:
-                    # self._clean_up_zombie_session(session_id)
                     self._log_error(
                         f"action: process_error | result: error | pid: {pid} | exitcode: {exitcode}"
                     )
@@ -127,6 +126,8 @@ class Controller(ABC):
                     self._log_info(
                         f"action: close_process | result: success | pid: {pid}"
                     )
+                self._set_controller_as_stopped()
+                self._stop()
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -167,7 +168,7 @@ class Controller(ABC):
         self._log_info("action: controller_running | result: success")
         self._handle_heartbeat_spawning_process()
 
-    def _close_heartbeat_processes(self) -> None:
+    def _close_heartbeat_process(self) -> None:
         self._terminate_all_processes()
         self._join_all_processes()
         uncaught_exceptions = self._close_all_processes()
@@ -194,7 +195,7 @@ class Controller(ABC):
             raise e
         finally:
             self._close_all()
-            self._close_heartbeat_processes()
+            self._close_heartbeat_process()
             self._log_info("action: close_all | result: success")
 
     # ============================== PUBLIC ============================== #

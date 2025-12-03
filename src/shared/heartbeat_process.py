@@ -44,6 +44,8 @@ class HeartbeatProcess:
 
         self._set_as_not_running()
 
+        # TODO: we should have a socket to listen for UPD connections
+        # we must close it when SIGTERM is received
         # self._client_socket.close()
         # self._log_debug(f"action: sigterm_client_socket_close | result: success")
 
@@ -56,7 +58,7 @@ class HeartbeatProcess:
         self._log_info(f"action: heartbeat_process_running | result: success")
 
         while self._is_running():
-            # Replace with actual heartbeat logic
+            # this should be listening and then send ack
             sleep_interval = 10
             self._log_info(f"action: heartbeat! | interval: {sleep_interval}s")
             time.sleep(sleep_interval)
