@@ -1,8 +1,9 @@
 import logging
 import os
 import signal
-import time
+import socket
 from typing import Any, Callable
+from .models import Message
 
 
 class HeartbeatProcess:
@@ -11,6 +12,9 @@ class HeartbeatProcess:
 
     def __init__(self, port: int) -> None:
         self._port = port
+
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.bind(("", port))
 
         self._set_as_not_running()
         signal.signal(signal.SIGTERM, self._sigterm_signal_handler)
@@ -44,10 +48,7 @@ class HeartbeatProcess:
 
         self._set_as_not_running()
 
-        # TODO: we should have a socket to listen for UPD connections
-        # we must close it when SIGTERM is received
-        # self._client_socket.close()
-        # self._log_debug(f"action: sigterm_client_socket_close | result: success")
+        self._health_socket.close()
 
         self._log_info(f"action: sigterm_signal_handler | result: success")
 
@@ -58,13 +59,70 @@ class HeartbeatProcess:
         self._log_info(f"action: heartbeat_process_running | result: success")
 
         while self._is_running():
-            # this should be listening and then send ack
-            sleep_interval = 10
-            self._log_info(f"action: heartbeat! | interval: {sleep_interval}s")
-            time.sleep(sleep_interval)
+            try:
+                data, addr = self._sock.recvfrom(64 * 1024)
+                msg = Message.from_json(data.decode("utf-8"))
+                
+                if msg.kind != "heartbeat":
+                    continue
+
+                ack = Message(
+                    kind="heartbeat_ack",
+                    src_id=0,
+                    src_name="",
+                    payload={}
+                )
+
+                data = ack.to_json().encode("utf-8")
+                self._sock.sendto(data, addr)
+                
+            except socket.timeout:
+                return None
+            except OSError as e:
+                errno = getattr(e, "errno", None)
+                if errno == 9:
+                    self._closed = True
+                elif errno == -2:
+                    logging.warning(
+                        f"action: send_message | result: fail | reason: dns_error")
+                else:
+                    logging.error(
+                        f"action: send_message | result: fail |  error: {e}"
+                    )
+                break
+            except Exception as e:
+                logging.error(
+                    f"action: receive_message | result: fail | error: {e}"
+                )
+                break
+            finally:
+                self._close_socket()
+    
+    def _close_socket(self) -> None:
+        try:
+            if self._sock is None:
+                return
+            if self._closed:
+                return
+            if getattr(self._sock, "_closed", False):
+                return
+            if self._sock.fileno() == -1:
+                return
+            
+            try:
+                self._sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                    pass
+            try:
+                self._sock.close()
+            except Exception:
+                    pass
+            return
+        except Exception:
+            return
 
     def _close_all(self) -> None:
-        pass
+        self._close_socket()
 
     def _ensure_connections_close_after_doing(self, callback: Callable) -> None:
         try:

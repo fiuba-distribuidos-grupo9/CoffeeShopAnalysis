@@ -26,6 +26,8 @@ class Election:
     def set_leader(self, leader_id: Optional[int]) -> None:
         with self._lock:
             old_leader = self._leader_id
+            if old_leader == leader_id:
+                return
             self._leader_id = leader_id
             if leader_id is None:
                 self._active_elections.clear()

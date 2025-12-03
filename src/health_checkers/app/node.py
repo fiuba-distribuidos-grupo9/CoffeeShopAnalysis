@@ -43,7 +43,7 @@ class Node:
         self._health_recv_thread: Optional[threading.Thread] = None
         self._health_send_thread: Optional[threading.Thread] = None
         self._leader_check_failures = 0
-        self._max_leader_check_failures = 3
+        self._max_leader_check_failures = 5
         self._leader_check_lock = threading.Lock()
 
         self._shutdown_event = threading.Event()
@@ -400,6 +400,7 @@ class Node:
                         logging.info(f"action: send_heartbeat | result: success | controller_name: {target.name}")
                 time.sleep(interval_s)
             else:
+                interval_s = self.cfg.leader_check_interval_ms / 1000
                 time.sleep(interval_s)
                 self._check_leader_alive()
     
@@ -493,7 +494,7 @@ class Node:
                 f"attempt: {failures}/{self._max_leader_check_failures}"
             )
             
-            if failures >= self._max_leader_check_failures:
+            if failures == self._max_leader_check_failures:
                 with self._leader_check_lock:
                     self._leader_check_failures = 0
                 logging.info(

@@ -21,13 +21,23 @@ docker-compose-up: docker-build-image
 .PHONY: docker-compose-up
 
 docker-compose-down:
-	docker compose --file $(DOCKER_COMPOSE_FILE) stop --timeout 60
+	docker compose --file $(DOCKER_COMPOSE_FILE) stop --timeout 20
 	docker compose --file $(DOCKER_COMPOSE_FILE) down
 .PHONY: docker-compose-down
 
 docker-compose-logs:
 	docker compose --file $(DOCKER_COMPOSE_FILE) logs --follow
 .PHONY: docker-compose-logs
+
+docker-compose-logs-hc:
+	@services=$$(docker compose --file $(DOCKER_COMPOSE_FILE) config --services | grep '^hc_'); \
+	if [ -z "$$services" ]; then \
+		echo "No services starting with 'hc_' found"; \
+		exit 1; \
+	fi; \
+	docker compose --file $(DOCKER_COMPOSE_FILE) logs --follow --timestamps $$services
+.PHONY: docker-compose-logs-hc
+
 
 docker-compose-restart:
 	docker compose -f $(DOCKER_COMPOSE_FILE) stop $(if $(SERVICES),$(SERVICES))
@@ -41,7 +51,7 @@ docker-compose-restart:
 docker-export-logs:
 	@rm -rf logs
 	@mkdir -p logs
-	@for service in $$(docker compose config --services | grep -v '^server$$'); do \
+	@for service in $$(docker compose config --services | grep -v '^server$$' | grep -v '^hc_'); do \
 		echo "Filtrando logs de $$service..."; \
 		touch logs/$$service.log; \
 		docker compose logs --no-color $$service 2>&1 | grep 'eof' > logs/$$service.log; \

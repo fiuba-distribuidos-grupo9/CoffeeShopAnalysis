@@ -157,7 +157,7 @@ class SocketManager:
                 if attempt < max_retries:
                     logging.info(
                         f"action: send_with_ack | status: retrying | "
-                        f"name: {self.name} | attempt: {attempt}/{max_retries}"
+                        f"name: {target[0]} | attempt: {attempt}/{max_retries}"
                     )
 
                     time.sleep(retry_delay_s)
@@ -184,7 +184,7 @@ class SocketManager:
             if attempt < max_retries:
                 logging.info(
                     f"action: send_with_ack | status: no_ack | "
-                    f"name: {self.name} | retrying: {attempt}/{max_retries}"
+                    f"name: {target[0]} | retrying: {attempt}/{max_retries}"
                 )
 
                 time.sleep(retry_delay_s)

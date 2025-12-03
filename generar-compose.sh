@@ -943,7 +943,7 @@ function get-targets(){
       targets="${targets}transactions_cleaner_$j,"
     done
     for ((j = 0; j < $USERS_CLN_AMOUNT; j++)) do 
-      targets="${targets}users_cleaners_$j,"
+      targets="${targets}users_cleaner_$j,"
     done
     for ((j = 0; j < $FILTER_TRANSACTIONS_BY_YEAR_AMOUNT; j++)) do 
       targets="${targets}filter_transactions_by_year_$j,"
@@ -1102,7 +1102,7 @@ function add-services() {
   add-comment $compose_file 'OUTPUT BUILDERS SERVICES'
   add-output-builders $compose_file
 
-  # add-comment $compose_file 'HEALTH CHECKERS SERVICES'
+  add-comment $compose_file 'HEALTH CHECKERS SERVICES'
   add-health-checkers
 }
 

@@ -194,6 +194,7 @@ class JSONCodec:
             raise ValueError(f"Unexpected character: {curr_char}")
 
     def decode(self, text: str) -> Any:
-        self._text = text
+        normalized = (text.replace("True", "true")).replace("False", "false").replace("None", "null")
+        self._text = normalized
         self._idx = 0
         return self._decode_recursive()

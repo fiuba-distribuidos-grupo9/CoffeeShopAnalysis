@@ -45,7 +45,7 @@ class Controller(ABC):
         self._init_mom_producers(rabbitmq_host, producers_config)
 
         self._heartbeat_process: Optional[multiprocessing.Process] = None
-        self._heartbeat_process_port = 555  # @TODO read from config
+        self._heartbeat_process_port = 9201  # @TODO read from config
 
     # ============================== PRIVATE - LOGGING ============================== #
 
