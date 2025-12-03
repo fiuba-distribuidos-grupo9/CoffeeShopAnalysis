@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.clean_session_message import CleanSessionMessage
 from shared.communication_protocol.duplicate_message_checker import (
     DuplicateMessageChecker,
 )
@@ -93,9 +94,10 @@ class StreamDataHandler:
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
-        self._metadata_file_name = Path("stream_metadata.txt")
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
+
+        self._metadata_file_name = Path("stream_metadata.txt")
 
         self._base_data_dir = Path("base_data")
         self._base_data_file_prefix = Path("base_data_")
@@ -136,8 +138,11 @@ class StreamDataHandler:
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
+    def _file_exists(self, path: Path) -> bool:
+        return path.exists() and path.is_file()
+
     def _assert_is_file(self, path: Path) -> None:
-        if not path.exists() or not path.is_file():
+        if not self._file_exists(path):
             raise ValueError(f"Data path error: {path} is not a file")
 
     def _assert_is_dir(self, path: Path) -> None:
@@ -145,7 +150,7 @@ class StreamDataHandler:
             raise ValueError(f"Data path error: {path} is not a folder")
 
     def _load_stream_data(self) -> None:
-        logging.info(f"action: load_stream_data | result: in_progress")
+        self._log_info(f"action: load_stream_data | result: in_progress")
 
         for path in self._stream_data_dir.iterdir():
             self._assert_is_file(path)
@@ -160,15 +165,15 @@ class StreamDataHandler:
                         metadata_section.batch_messages()
                     )
                 else:
-                    logging.warning(
+                    self._log_warning(
                         f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                     )
 
-        logging.info(f"action: load_stream_data | result: success")
+        self._log_info(f"action: load_stream_data | result: success")
 
     def _load_last_state(self) -> None:
         path = self._metadata_file_name
-        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+        self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
@@ -182,36 +187,36 @@ class StreamDataHandler:
                     metadata_section.prev_controllers_eof_recv()
                 )
             else:
-                logging.warning(
+                self._log_warning(
                     f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
         self._load_stream_data()
 
-        logging.info(f"action: load_last_state | result: success | file: {path}")
+        self._log_info(f"action: load_last_state | result: success | file: {path}")
 
     def _load_last_state_if_exists(self) -> None:
         path = self._metadata_file_name
         if path.exists() and path.is_file():
             self._load_last_state()
         else:
-            logging.info(
+            self._log_info(
                 f"action: load_last_state_skipped | result: success | file: {path}"
             )
 
     def _save_stream_data_section(self, session_id: str) -> None:
-        stream_data_section = SessionBatchMessages(
-            self._stream_data_buffer_by_session_id[session_id]
+        batch_messages = self._stream_data_buffer_by_session_id.get(session_id, None)
+        path = (
+            self._stream_data_dir / f"{self._stream_data_file_prefix}{session_id}.txt"
         )
-        self._atomic_writer.write(
-            self._stream_data_dir / f"{self._stream_data_file_prefix}{session_id}.txt",
-            str(stream_data_section),
-        )
+        if batch_messages:
+            self._atomic_writer.write(
+                path,
+                str(SessionBatchMessages(batch_messages)),
+            )
 
-    def _save_current_state(self, message: Message) -> None:
-        if isinstance(message, BatchMessage):
-            session_id = message.session_id()
-            self._save_stream_data_section(session_id)
+    def _save_current_state(self, session_id: str) -> None:
+        self._save_stream_data_section(session_id)
 
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message),
@@ -236,21 +241,22 @@ class StreamDataHandler:
 
     def _join_with_base_data(self, stream_message: BatchMessage) -> BatchMessage:
         joined_batch_items: list[dict[str, str]] = []
-        for stream_batch_item in stream_message.batch_items():
-            was_joined = False
-            for base_messages in self._base_data_by_session_id.get(
-                stream_message.session_id(), []
-            ):
-                for base_batch_item in base_messages.batch_items():
-                    if self._should_be_joined(base_batch_item, stream_batch_item):
-                        joined_batch_item = {**stream_batch_item, **base_batch_item}
-                        joined_batch_items.append(joined_batch_item)
-                        was_joined = True
-                        break
-            if not was_joined:
-                self._log_warning(
-                    f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
-                )
+        with self._base_data_by_session_id_lock:
+            for stream_batch_item in stream_message.batch_items():
+                was_joined = False
+                for base_messages in self._base_data_by_session_id.get(
+                    stream_message.session_id(), []
+                ):
+                    for base_batch_item in base_messages.batch_items():
+                        if self._should_be_joined(base_batch_item, stream_batch_item):
+                            joined_batch_item = {**stream_batch_item, **base_batch_item}
+                            joined_batch_items.append(joined_batch_item)
+                            was_joined = True
+                            break
+                if not was_joined:
+                    self._log_warning(
+                        f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
+                    )
         stream_message.update_batch_items(joined_batch_items)
         return stream_message
 
@@ -267,15 +273,26 @@ class StreamDataHandler:
 
     def _send_all_buffered_messages(self, session_id: str) -> None:
         self._log_info(
+            f"action: send_all_buffered_messages | result: in_progress | session_id: {session_id}"
+        )
+
+        while len(self._stream_data_buffer_by_session_id.get(session_id, [])) > 0:
+            stream_message = self._stream_data_buffer_by_session_id[session_id].pop()
+            joined_message = self._join_with_base_data(stream_message)
+            if len(joined_message.batch_items()) == 0:
+                self._log_warning(
+                    f"action: empty_joined_message | result: error | session_id: {session_id}"
+                )
+                continue
+
+            joined_message.update_controller_id(str(self._controller_id))
+            self._mom_send_message_to_next(joined_message)
+
+            self._save_stream_data_section(session_id)
+
+        self._log_info(
             f"action: send_all_buffered_messages | result: success | session_id: {session_id}"
         )
-        batch_messages = self._stream_data_buffer_by_session_id.get(session_id, [])
-        for batch_message in batch_messages:
-            joined_message = self._join_with_base_data(batch_message)
-            if len(joined_message.batch_items()) > 0:
-                joined_message.update_controller_id(str(self._controller_id))
-                self._mom_send_message_to_next(joined_message)
-        self._stream_data_buffer_by_session_id[session_id] = []
 
     def _handle_data_batch_message_when_all_base_data_received(
         self, message: BatchMessage
@@ -293,32 +310,30 @@ class StreamDataHandler:
                 )
 
     def _clean_session_data_of(self, session_id: str) -> None:
-        logging.info(
+        self._log_info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        del self._prev_controllers_eof_recv[session_id]
+        self._prev_controllers_eof_recv.pop(session_id, None)
+        self._stream_data_buffer_by_session_id.pop(session_id, None)
 
-        if session_id in self._stream_data_buffer_by_session_id:
-            del self._stream_data_buffer_by_session_id[session_id]
-            stream_data_file_path = (
-                self._stream_data_dir
-                / f"{self._stream_data_file_prefix}{session_id}.txt"
-            )
-            if stream_data_file_path.exists() and stream_data_file_path.is_file():
-                stream_data_file_path.unlink()
+        path = (
+            self._stream_data_dir / f"{self._stream_data_file_prefix}{session_id}.txt"
+        )
+        if self._file_exists(path):
+            path.unlink()
 
         with self._all_base_data_received_lock:
-            del self._all_base_data_received[session_id]
+            self._all_base_data_received.pop(session_id, None)
         with self._base_data_by_session_id_lock:
-            del self._base_data_by_session_id[session_id]
-            base_data_file_path = (
+            self._base_data_by_session_id.pop(session_id, None)
+            path = (
                 self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
             )
-            if base_data_file_path.exists() and base_data_file_path.is_file():
-                base_data_file_path.unlink()
+            if self._file_exists(path):
+                path.unlink()
 
-        logging.info(
+        self._log_info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
@@ -369,6 +384,20 @@ class StreamDataHandler:
                 del self._prev_controllers_last_message[int(prev_controller_id)]
                 self._mom_consumer.send(str(message))
 
+    def _handle_clean_session_data_message(self, message: CleanSessionMessage) -> None:
+        session_id = message.session_id()
+        self._log_info(
+            f"action: clean_session_message_received | result: success | session_id: {session_id}"
+        )
+
+        self._clean_session_data_of(session_id)
+
+        message.update_controller_id(str(self._controller_id))
+        self._mom_send_message_through_all_producers(message)
+        self._log_info(
+            f"action: clean_session_message_sent | result: success | session_id: {session_id}"
+        )
+
     def _handle_stream_data(self, message_as_bytes: bytes) -> None:
         if not self._is_running():
             self._mom_consumer.stop_consuming()
@@ -378,9 +407,13 @@ class StreamDataHandler:
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
                 self._handle_data_batch_message_when_all_base_data_received(message)
+                self._save_current_state(message.session_id())
             elif isinstance(message, EOFMessage):
                 self._handle_data_batch_eof_message(message)
-            self._save_current_state(message)
+                self._save_current_state(message.session_id())
+            elif isinstance(message, CleanSessionMessage):
+                self._handle_clean_session_data_message(message)
+                self._save_current_state(message.session_id())
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message}"

@@ -30,6 +30,9 @@ class DuplicateMessageChecker:
         else:
             return last_message == message
 
+    def visit_clean_session_message(self, message: Message) -> bool:
+        return False
+
     def visit_eof_message(self, message: EOFMessage) -> bool:
         controller_id = int(message.controller_id())
 

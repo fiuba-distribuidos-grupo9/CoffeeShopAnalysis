@@ -1,4 +1,3 @@
-import logging
 from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Optional
@@ -6,6 +5,7 @@ from typing import Any, Optional
 from controllers.shared.controller import Controller
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.clean_session_message import CleanSessionMessage
 from shared.communication_protocol.duplicate_message_checker import (
     DuplicateMessageChecker,
 )
@@ -49,9 +49,10 @@ class Cleaner(Controller):
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
 
-        self._metadata_file_name = Path("metadata.txt")
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
+
+        self._metadata_file_name = Path("metadata.txt")
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -69,7 +70,7 @@ class Cleaner(Controller):
 
     def _load_last_state(self) -> None:
         path = self._metadata_file_name
-        logging.info(f"action: load_last_state | result: in_progress | file: {path}")
+        self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
@@ -79,18 +80,18 @@ class Cleaner(Controller):
                     metadata_section.prev_controllers_last_message()
                 )
             else:
-                logging.warning(
+                self._log_warning(
                     f"action: unknown_metadata_section | result: error | section: {metadata_section}"
                 )
 
-        logging.info(f"action: load_last_state | result: success | file: {path}")
+        self._log_info(f"action: load_last_state | result: success | file: {path}")
 
     def _load_last_state_if_exists(self) -> None:
         path = self._metadata_file_name
         if path.exists() and path.is_file():
             self._load_last_state()
         else:
-            logging.info(
+            self._log_info(
                 f"action: load_last_state_skipped | result: success | file: {path}"
             )
 
@@ -98,14 +99,14 @@ class Cleaner(Controller):
         metadata_sections = [
             PrevControllersLastMessage(self._prev_controllers_last_message)
         ]
-        for metadata_section in metadata_sections:
-            self._atomic_writer.write(self._metadata_file_name, str(metadata_section))
+        metadata_sections_str = "".join([str(section) for section in metadata_sections])
+        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
     def _stop(self) -> None:
         self._mom_consumer.stop_consuming()
-        logging.info("action: sigterm_mom_stop_consuming | result: success")
+        self._log_info("action: sigterm_mom_stop_consuming | result: success")
 
     # ============================== PRIVATE - FILTER ============================== #
 
@@ -142,27 +143,41 @@ class Cleaner(Controller):
         raise NotImplementedError("subclass responsibility")
 
     def _clean_session_data_of(self, session_id: str) -> None:
-        logging.info(
+        self._log_info(
             f"action: clean_session_data | result: in_progress | session_id: {session_id}"
         )
 
-        logging.info(
+        self._log_info(
             f"action: clean_session_data | result: success | session_id: {session_id}"
         )
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
-        logging.info(
+        self._log_info(
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
         message.update_controller_id(str(self._controller_id))
         self._mom_send_message_through_all_producers(message)
-        logging.info(
+        self._log_info(
             f"action: eof_sent | result: success | session_id: {session_id}",
         )
 
         self._clean_session_data_of(session_id)
+
+    def _handle_clean_session_data_message(self, message: CleanSessionMessage) -> None:
+        session_id = message.session_id()
+        self._log_info(
+            f"action: clean_session_message_received | result: success | session_id: {session_id}"
+        )
+
+        self._clean_session_data_of(session_id)
+
+        message.update_controller_id(str(self._controller_id))
+        self._mom_send_message_through_all_producers(message)
+        self._log_info(
+            f"action: clean_session_message_sent | result: success | session_id: {session_id}"
+        )
 
     def _handle_received_data(self, message_as_bytes: bytes) -> None:
         if not self._is_running():
@@ -176,9 +191,11 @@ class Cleaner(Controller):
                 self._handle_data_batch_message(message)
             elif isinstance(message, EOFMessage):
                 self._handle_data_batch_eof_message(message)
+            elif isinstance(message, CleanSessionMessage):
+                self._handle_clean_session_data_message(message)
             self._save_current_state()
         else:
-            logging.info(
+            self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message}"
             )
 
@@ -194,8 +211,9 @@ class Cleaner(Controller):
         raise NotImplementedError("subclass responsibility")
 
     def _close_all(self) -> None:
+        super()._close_all()
         self._close_all_producers()
 
         self._mom_consumer.delete()
         self._mom_consumer.close()
-        logging.debug("action: mom_consumer_close | result: success")
+        self._log_debug("action: mom_consumer_close | result: success")

@@ -1,4 +1,3 @@
-import logging
 import threading
 from abc import abstractmethod
 from typing import Any, Optional
@@ -97,11 +96,11 @@ class Joiner(Controller):
     def _stop(self) -> None:
         if self._base_data_handler:
             self._base_data_handler.mom_consumer().schedule_stop_sonsuming()
-            logging.info("action: base_data_consumer_stop | result: success")
+            self._log_info("action: base_data_consumer_stop | result: success")
 
         if self._stream_data_handler:
             self._stream_data_handler.mom_consumer().schedule_stop_sonsuming()
-            logging.info("action: stream_data_consumer_stop | result: success")
+            self._log_info("action: stream_data_consumer_stop | result: success")
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -130,7 +129,7 @@ class Joiner(Controller):
         except Exception as e:
             with self._uncaught_exception_lock:
                 self._uncaught_exception = e
-            logging.error(f"action: thread_exception | result: fail | error: {e}")
+            self._log_error(f"action: thread_exception | result: fail | error: {e}")
         finally:
             self._set_controller_as_stopped()
 
@@ -155,7 +154,7 @@ class Joiner(Controller):
         except Exception as e:
             with self._uncaught_exception_lock:
                 self._uncaught_exception = e
-            logging.error(f"action: thread_exception | result: fail | error: {e}")
+            self._log_error(f"action: thread_exception | result: fail | error: {e}")
         finally:
             self._set_controller_as_stopped()
 
@@ -170,11 +169,14 @@ class Joiner(Controller):
         self.is_stopped.wait()
 
     def _close_all(self) -> None:
+        super()._close_all()
         self._base_data_thread.join()
-        logging.info(f"action: {self._base_data_thread.name}_join | result: success")
+        self._log_info(f"action: {self._base_data_thread.name}_join | result: success")
 
         self._stream_data_thread.join()
-        logging.info(f"action: {self._stream_data_thread.name}_join | result: success")
+        self._log_info(
+            f"action: {self._stream_data_thread.name}_join | result: success"
+        )
 
         with self._uncaught_exception_lock:
             if self._uncaught_exception is not None:

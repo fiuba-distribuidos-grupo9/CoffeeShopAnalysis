@@ -98,13 +98,14 @@ class FilterTransactionsByYear(Filter):
         # [IMPORTANT] this must consider the next controller's grouping key
         sharding_key = "user_id"
 
+        counter = 0
         for batch_item in message.batch_items():
             if batch_item[sharding_key] == "":
-                # [IMPORTANT] If sharding value is empty, the hash will fail
-                # but we are going to assign it to the first reducer anyway
-                hash = 0
-                batch_items_by_hash.setdefault(hash, [])
-                batch_items_by_hash[hash].append(batch_item)
+                if counter == 0:
+                    logging.warning(
+                        f"action: invalid_{sharding_key} | {sharding_key}: {batch_item[sharding_key]} | result: skipped"
+                    )
+                counter = 0 if counter == 1000 else counter + 1
                 continue
             sharding_value = int(float(batch_item[sharding_key]))
             batch_item[sharding_key] = str(sharding_value)

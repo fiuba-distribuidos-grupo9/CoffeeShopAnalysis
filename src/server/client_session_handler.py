@@ -5,7 +5,6 @@ import socket
 import uuid
 from typing import Any, Callable
 
-from middleware.middleware import MessageMiddleware
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared import constants
 from shared.communication_protocol import constants as cp_constants
@@ -70,12 +69,18 @@ class ClientSessionHandler:
     def __init__(
         self,
         client_socket: socket.socket,
+        session_id: str,
         rabbitmq_host: str,
         cleaners_data: dict,
         output_builders_data: dict,
     ) -> None:
         self._client_socket = client_socket
-        self._session_id = uuid.uuid4().hex
+        self._client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 10)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+        self._client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+
+        self._session_id = session_id
         self._controller_id = 0
 
         self._set_as_not_running()
@@ -136,7 +141,10 @@ class ClientSessionHandler:
     def _socket_send_message(self, socket: socket.socket, message: str) -> None:
         self._log_debug(f"action: send_message | result: in_progress | msg: {message}")
 
-        socket.sendall(message.encode("utf-8"))
+        if self._is_running():
+            socket.sendall(message.encode("utf-8"))
+        else:
+            logging.error(f"action: send_message_while_not_running | result: error")
 
         self._log_debug(f"action: send_message | result: success |  msg: {message}")
 
@@ -190,7 +198,7 @@ class ClientSessionHandler:
 
         mom_producers = self._mom_cleaners_connections[data_type]
         for mom_producer in mom_producers:
-            message.update_message_id(uuid.uuid4().hex)
+            message.update_message_id(uuid.UUID(int=0).hex)
             message.update_controller_id(str(self._controller_id))
             mom_producer.send(str(message))
 
@@ -268,9 +276,6 @@ class ClientSessionHandler:
                 return
 
             received_message = self._socket_receive_message(client_socket)
-            self._log_info(
-                f"action: receive_data_from_client | result: success | msg: {received_message}"
-            )
             self._with_each_message_do(
                 received_message,
                 self._handle_client_message,

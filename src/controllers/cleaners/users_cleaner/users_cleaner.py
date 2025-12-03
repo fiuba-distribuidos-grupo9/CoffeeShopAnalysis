@@ -49,11 +49,14 @@ class UsersCleaner(Cleaner):
         # [IMPORTANT] this must consider the next controller's grouping key
         sharding_key = "user_id"
 
+        counter = 0
         for batch_item in message.batch_items():
             if batch_item[sharding_key] == "":
-                logging.warning(
-                    f"action: invalid_{sharding_key} | {sharding_key}: {batch_item[sharding_key]} | result: skipped"
-                )
+                if counter == 0:
+                    logging.warning(
+                        f"action: invalid_{sharding_key} | {sharding_key}: {batch_item[sharding_key]} | result: skipped"
+                    )
+                counter = 0 if counter == 1000 else counter + 1
                 continue
             sharding_value = int(float(batch_item[sharding_key]))
             batch_item[sharding_key] = str(sharding_value)

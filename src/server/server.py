@@ -2,10 +2,17 @@ import logging
 import multiprocessing
 import signal
 import socket
+import uuid
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Optional
 
+from server.client_session_cleaner import ClientSessionCleaner
 from server.client_session_handler import ClientSessionHandler
+from shared.file_protocol.atomic_writer import AtomicWriter
+from shared.file_protocol.client_session_ids import ClientSessionIds
+from shared.file_protocol.metadata_reader import MetadataReader
+from shared.heartbeat_process import HeartbeatProcess
 
 
 class Server:
@@ -32,7 +39,15 @@ class Server:
         self._cleaners_data = cleaners_data
         self._output_builders_data = output_builders_data
 
-        self._spawned_processes: list[multiprocessing.Process] = []
+        self._client_spawned_processes: dict[str, multiprocessing.Process] = {}
+
+        self._heartbeat_process: Optional[multiprocessing.Process] = None
+        self._heartbeat_process_port = 555  # @TODO read from config
+
+        self._metadata_reader = MetadataReader()
+        self._atomic_writer = AtomicWriter()
+
+        self._metadata_file_name = Path("metadata.txt")
 
     # ============================== PRIVATE - LOGGING ============================== #
 
@@ -59,16 +74,34 @@ class Server:
     # ============================== PRIVATE - HANDLE PROCESSES ============================== #
 
     def _terminate_all_processes(self) -> None:
-        for process in self._spawned_processes:
+        for _, process in self._client_spawned_processes.items():
             if process.is_alive():
                 process.terminate()
                 self._log_debug(
                     f"action: terminate_process | result: success | pid: {process.pid}"
                 )
+
+        if self._heartbeat_process:
+            process = self._heartbeat_process
+            if process.is_alive():
+                process.terminate()
+                self._log_debug(
+                    f"action: terminate_process | result: success | pid: {process.pid}"
+                )
+
         self._log_info("action: all_processes_terminate | result: success")
 
     def _join_all_processes(self) -> None:
-        for process in self._spawned_processes:
+        for _, process in self._client_spawned_processes.items():
+            process.join()
+            pid = process.pid
+            exitcode = process.exitcode
+            self._log_info(
+                f"action: join_process | result: success | pid: {pid} | exitcode: {exitcode}"
+            )
+
+        if self._heartbeat_process:
+            process = self._heartbeat_process
             process.join()
             pid = process.pid
             exitcode = process.exitcode
@@ -78,7 +111,8 @@ class Server:
 
     def _close_all_processes(self) -> list[tuple[int, int]]:
         uncaught_exceptions = []
-        for process in self._spawned_processes:
+
+        for _, process in self._client_spawned_processes.items():
             pid = process.pid
             exitcode = process.exitcode
             if exitcode != 0:
@@ -86,10 +120,22 @@ class Server:
 
             process.close()
             self._log_debug(f"action: close_process | result: success | pid: {pid}")
+
+        if self._heartbeat_process:
+            process = self._heartbeat_process
+            pid = process.pid
+            exitcode = process.exitcode
+            if exitcode != 0:
+                uncaught_exceptions.append((pid, exitcode))
+
+            process.close()
+            self._log_debug(f"action: close_process | result: success | pid: {pid}")
+
         return uncaught_exceptions
 
     def _join_non_alive_processes(self) -> None:
-        for process in self._spawned_processes:
+        processes_to_close: list[tuple[str, multiprocessing.Process]] = []
+        for session_id, process in self._client_spawned_processes.items():
             if not process.is_alive():
                 process.join()
                 pid = process.pid
@@ -98,15 +144,44 @@ class Server:
                     f"action: join_process | result: success | pid: {pid} | exitcode: {exitcode}"
                 )
 
+                processes_to_close.append((session_id, process))
                 if exitcode != 0:
-                    self._set_server_as_stopped()
-                    self._stop()
+                    self._clean_up_zombie_session(session_id)
+                    self._log_error(
+                        f"action: process_error | result: error | pid: {pid} | exitcode: {exitcode}"
+                    )
                 else:
-                    process.close()
-                    self._spawned_processes.remove(process)
                     self._log_info(
                         f"action: close_process | result: success | pid: {pid}"
                     )
+
+        for session_id, process in processes_to_close:
+            process.close()
+            self._client_spawned_processes.pop(session_id)
+        self._save_current_state()
+
+        if self._heartbeat_process:
+            process = self._heartbeat_process
+            if not process.is_alive():
+                process.join()
+                pid = process.pid
+                exitcode = process.exitcode
+                self._log_info(
+                    f"action: join_process | result: success | pid: {pid} | exitcode: {exitcode}"
+                )
+
+                process.close()
+                self._heartbeat_process = None
+                if exitcode != 0:
+                    self._log_error(
+                        f"action: process_error | result: error | pid: {pid} | exitcode: {exitcode}"
+                    )
+                else:
+                    self._log_info(
+                        f"action: close_process | result: success | pid: {pid}"
+                    )
+                self._set_server_as_stopped()
+                self._stop()
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -150,11 +225,88 @@ class Server:
             self._log_error(f"action: accept_connections | result: fail | error: {e}")
             return None
 
+    # ============================== PRIVATE - MANAGING STATE ============================== #
+
+    def _load_zombie_sessions(self) -> list[str]:
+        session_ids = []
+
+        path = self._metadata_file_name
+        logging.info(
+            f"action: load_zombie_sessions | result: in_progress | file: {path}"
+        )
+
+        metadata_sections = self._metadata_reader.read_from(path)
+        for metadata_section in metadata_sections:
+            if isinstance(metadata_section, ClientSessionIds):
+                session_ids = metadata_section.client_session_ids()
+            else:
+                logging.warning(
+                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
+                )
+
+        logging.info(
+            f"action: load_zombie_sessions | result: success | file: {path}",
+        )
+
+        return session_ids
+
+    def _save_new_session_on_current_state(self, new_session_id: str) -> None:
+        client_session_ids = []
+        client_session_ids.append(new_session_id)
+        client_session_ids.extend(self._client_spawned_processes.keys())
+        self._atomic_writer.write(
+            self._metadata_file_name, str(ClientSessionIds(client_session_ids))
+        )
+
+    def _save_current_state(self) -> None:
+        client_session_ids = []
+        client_session_ids.extend(self._client_spawned_processes.keys())
+        self._atomic_writer.write(
+            self._metadata_file_name, str(ClientSessionIds(client_session_ids))
+        )
+
+    def _clean_up_zombie_session(self, session_id: str) -> None:
+        self._log_info(
+            f"action: clean_zombie_session | result: in_progress | session_id: {session_id}"
+        )
+        ClientSessionCleaner(
+            session_id,
+            self._rabbitmq_host,
+            self._cleaners_data,
+            self._output_builders_data,
+        ).run()
+        self._log_info(
+            f"action: clean_zombie_session | result: success | session_id: {session_id}"
+        )
+
+    def _clean_up_zombie_sessions(self) -> None:
+        session_ids = self._load_zombie_sessions()
+        for session_id in session_ids:
+            try:
+                self._clean_up_zombie_session(session_id)
+            except Exception as e:
+                self._log_error(
+                    f"action: clean_zombie_session | result: error | session_id: {session_id} | error: {e}"
+                )
+        self._save_current_state()
+
+    def _clean_up_zombie_sessions_if_any(self) -> None:
+        path = self._metadata_file_name
+        if path.exists() and path.is_file():
+            self._clean_up_zombie_sessions()
+        else:
+            logging.info(
+                f"action: clean_up_zombie_sessions_skipped | result: success | file: {path}"
+            )
+
     # ============================== PRIVATE - HANDLE CLIENT CONNECTION ============================== #
 
-    def _handle_client_connection(self, client_socket: socket.socket) -> None:
+    def _handle_client_connection(
+        self, client_socket: socket.socket, session_id: str
+    ) -> None:
         ClientSessionHandler(
             client_socket,
+            session_id,
             self._rabbitmq_host,
             self._cleaners_data,
             self._output_builders_data,
@@ -163,17 +315,32 @@ class Server:
     def _handle_client_connection_spawning_process(
         self, client_socket: socket.socket
     ) -> None:
+        session_id = uuid.uuid4().hex
+        self._save_new_session_on_current_state(session_id)
         process = multiprocessing.Process(
-            target=self._handle_client_connection, args=(client_socket,)
+            target=self._handle_client_connection, args=(client_socket, session_id)
         )
         process.start()
-        self._spawned_processes.append(process)
+        self._client_spawned_processes[session_id] = process
         self._log_info(f"action: spawn_client_connection_process | result: success")
+
+    # ============================== PRIVATE - HEARTBEAT ============================== #
+
+    def _handle_heartbeat(self) -> None:
+        HeartbeatProcess(self._heartbeat_process_port).run()
+
+    def _handle_heartbeat_spawning_process(self) -> None:
+        process = multiprocessing.Process(target=self._handle_heartbeat, args=())
+        process.start()
+        self._heartbeat_process = process
+        self._log_info(f"action: spawn_heartbeat_process | result: success")
 
     # ============================== PRIVATE - RUN ============================== #
 
     def _run(self) -> None:
         self._set_server_as_running()
+        self._handle_heartbeat_spawning_process()
+        self._clean_up_zombie_sessions_if_any()
 
         while self._is_running():
             client_socket = self._accept_new_connection()

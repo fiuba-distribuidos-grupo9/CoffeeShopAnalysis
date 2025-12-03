@@ -47,11 +47,6 @@ services:
         source: ${LOCAL_RESULTS_PATH}
         target: /results
         read_only: false
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 1
     depends_on:
       server:
         condition: service_started
