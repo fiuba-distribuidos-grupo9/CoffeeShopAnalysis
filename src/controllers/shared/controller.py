@@ -14,13 +14,7 @@ class Controller(ABC):
 
     # ============================== INITIALIZE ============================== #
 
-    def __init__(
-        self,
-        controller_id: int,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-        producers_config: dict[str, Any],
-    ) -> None:
+    def __init__(self, controller_id: int) -> None:
         self._controller_id = controller_id
 
         self.is_stopped = threading.Event()

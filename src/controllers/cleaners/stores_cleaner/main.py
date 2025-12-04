@@ -10,7 +10,7 @@ def main():
             "LOGGING_LEVEL",
             "CONTROLLER_ID",
             "RABBITMQ_HOST",
-            "NEXT_CONTROLLERS_AMOUNT",  # @TODO: add another env variable
+            "NEXT_CONTROLLERS_AMOUNT",
         ]
     )
     initializer.init_log(config_params["LOGGING_LEVEL"])

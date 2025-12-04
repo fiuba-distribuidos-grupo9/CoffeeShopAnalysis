@@ -61,12 +61,7 @@ class SingleConsumerController(Controller):
         consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
     ) -> None:
-        super().__init__(
-            controller_id,
-            rabbitmq_host,
-            consumers_config,
-            producers_config,
-        )
+        super().__init__(controller_id)
 
         self._init_mom_consumer(rabbitmq_host, consumers_config)
         self._init_mom_producers(rabbitmq_host, producers_config)

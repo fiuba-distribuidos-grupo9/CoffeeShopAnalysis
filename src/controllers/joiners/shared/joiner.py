@@ -43,12 +43,7 @@ class Joiner(Controller):
         consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
     ) -> None:
-        super().__init__(
-            controller_id,
-            rabbitmq_host,
-            consumers_config,
-            producers_config,
-        )
+        super().__init__(controller_id)
 
         self._controller_id = controller_id
         self._rabbitmq_host = rabbitmq_host
