@@ -18,6 +18,7 @@ def main():
 
     consumers_config = {
         "queue_name_prefix": constants.DIRTY_MIT_QUEUE_PREFIX,
+        "prev_controllers_amount": 1,
     }
     producers_config = {
         "queue_name_prefix_1": constants.CLEANED_MIT_21_QUEUE_PREFIX,

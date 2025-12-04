@@ -474,6 +474,7 @@ class StreamDataHandler:
     # ============================== PRIVATE - RUN ============================== #
 
     def _run(self) -> None:
+        self._stream_data_handler_able_to_event.wait()
         self._log_info(f"action: handler_running | result: success")
         self._load_last_state_if_exists()
         self._mom_consumer.start_consuming(self._handle_stream_data)

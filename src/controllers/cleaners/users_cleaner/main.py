@@ -18,6 +18,7 @@ def main():
 
     consumers_config = {
         "queue_name_prefix": constants.DIRTY_USR_QUEUE_PREFIX,
+        "prev_controllers_amount": 1,
     }
     producers_config = {
         "queue_name_prefix": constants.CLEANED_USR_4X_QUEUE_PREFIX,

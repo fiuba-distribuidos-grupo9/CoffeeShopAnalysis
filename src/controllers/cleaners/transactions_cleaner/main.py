@@ -20,6 +20,7 @@ def main():
 
     consumers_config = {
         "queue_name_prefix": constants.DIRTY_TRN_QUEUE_PREFIX,
+        "prev_controllers_amount": 1,
     }
     producers_config = {
         "queue_name_prefix": constants.CLEANED_TRN_1X_QUEUE_PREFIX,
