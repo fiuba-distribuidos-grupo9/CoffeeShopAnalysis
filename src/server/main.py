@@ -73,6 +73,7 @@ def main():
             "SERVER_PORT",
             "SERVER_LISTEN_BACKLOG",
             "RABBITMQ_HOST",
+            "HEALTH_LISTEN_PORT",
             "MENU_ITEMS_CLN_AMOUNT",
             "STORES_CLN_AMOUNT",
             "TRANSACTION_ITEMS_CLN_AMOUNT",
@@ -92,6 +93,7 @@ def main():
         port=int(config_params["SERVER_PORT"]),
         listen_backlog=int(config_params["SERVER_LISTEN_BACKLOG"]),
         rabbitmq_host=config_params["RABBITMQ_HOST"],
+        health_listen_port=int(config_params["HEALTH_LISTEN_PORT"]),
         cleaners_data=_build_cleaners_data(config_params),
         output_builders_data=_build_output_builders_data(config_params),
     )

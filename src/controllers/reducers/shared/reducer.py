@@ -50,6 +50,7 @@ class Reducer(SingleConsumerController):
         self,
         controller_id: int,
         rabbitmq_host: str,
+        health_listen_port: int,
         consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
         batch_max_size: int,
@@ -57,6 +58,7 @@ class Reducer(SingleConsumerController):
         super().__init__(
             controller_id,
             rabbitmq_host,
+            health_listen_port,
             consumers_config,
             producers_config,
         )

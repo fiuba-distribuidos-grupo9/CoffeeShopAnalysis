@@ -14,7 +14,11 @@ class Controller(ABC):
 
     # ============================== INITIALIZE ============================== #
 
-    def __init__(self, controller_id: int) -> None:
+    def __init__(
+        self,
+        controller_id: int,
+        health_listen_port: int,
+    ) -> None:
         self._controller_id = controller_id
 
         self.is_stopped = threading.Event()
@@ -22,7 +26,7 @@ class Controller(ABC):
         signal.signal(signal.SIGTERM, self._sigterm_signal_handler)
 
         self._heartbeat_process: Optional[multiprocessing.Process] = None
-        self._heartbeat_process_port = 9201  # @TODO read from config
+        self._heartbeat_process_port = health_listen_port
 
         self._random_exit_active = False
 
