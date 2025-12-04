@@ -1,7 +1,7 @@
 ToDo list (backlog):
 
 - deberiamos imprimir lo que se va cargando de la metadata, total es una unica vez que se hace
-- 
+- volar el requirements.txt
 - [VER] implementar la espera del joiner de una mejor manera (capaz mandando un mensaje especial, porque potencialmente podría quedar en un loop infinito o quedar basura)
 - podemos dividir cuanto se le manda a cada lado de los controllers en los que se bifurca
 - aplicar patrón visitor
