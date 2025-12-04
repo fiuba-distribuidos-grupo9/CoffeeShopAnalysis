@@ -3,24 +3,14 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Optional
 
-from controllers.shared.controller import Controller
+from controllers.shared.single_consumer_controller import SingleConsumerController
 from controllers.sorters.shared.sorted_desc_data import SortedDescData
 from middleware.middleware import MessageMiddleware
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.clean_session_message import CleanSessionMessage
-from shared.communication_protocol.duplicate_message_checker import (
-    DuplicateMessageChecker,
-)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
-from shared.file_protocol.atomic_writer import AtomicWriter
-from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
-    PrevControllersEOFRecv,
-)
-from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
-    PrevControllersLastMessage,
-)
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 from shared.file_protocol.metadata_sections.session_batch_messages import (
     SessionBatchMessages,
 )
@@ -29,28 +19,9 @@ from shared.file_protocol.metadata_sections.sorted_desc_data_by_session_id impor
 )
 
 
-class Sorter(Controller):
+class Sorter(SingleConsumerController):
 
     # ============================== INITIALIZE ============================== #
-
-    @abstractmethod
-    def _build_mom_consumer_using(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> MessageMiddleware:
-        raise NotImplementedError("subclass responsibility")
-
-    def _init_mom_consumers(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> None:
-        self._prev_controllers_eof_recv: dict[str, list[bool]] = {}
-        self._prev_controllers_amount = consumers_config["prev_controllers_amount"]
-        self._mom_consumer = self._build_mom_consumer_using(
-            rabbitmq_host, consumers_config
-        )
 
     @abstractmethod
     def _build_mom_producer_using(
@@ -96,14 +67,6 @@ class Sorter(Controller):
 
         self._sorted_desc_data_by_session_id: dict[str, SortedDescData] = {}
 
-        self._prev_controllers_last_message: dict[int, Message] = {}
-        self._duplicate_message_checker = DuplicateMessageChecker(self)
-
-        self._metadata_reader = MetadataReader()
-        self._atomic_writer = AtomicWriter()
-
-        self._metadata_file_name = Path("metadata.txt")
-
         self._results_dir = Path("results")
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._results_file_prefix = Path("results_")
@@ -136,17 +99,6 @@ class Sorter(Controller):
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
-    def _file_exists(self, path: Path) -> bool:
-        return path.exists() and path.is_file()
-
-    def _assert_is_file(self, path: Path) -> None:
-        if not self._file_exists(path):
-            raise ValueError(f"Data path error: {path} is not a file")
-
-    def _assert_is_dir(self, path: Path) -> None:
-        if not path.exists() or not path.is_dir():
-            raise ValueError(f"Data path error: {path} is not a folder")
-
     def _load_results_to_be_sent(self, session_id: str) -> list[BatchMessage]:
         self._log_info(f"action: load_results_to_be_sent | result: in_progress")
 
@@ -170,21 +122,15 @@ class Sorter(Controller):
         return messages
 
     def _load_last_state(self) -> None:
+        super()._load_last_state()
+
         path = self._metadata_file_name
         self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
             # @TODO: visitor pattern can be used here
-            if isinstance(metadata_section, PrevControllersLastMessage):
-                self._prev_controllers_last_message = (
-                    metadata_section.prev_controllers_last_message()
-                )
-            elif isinstance(metadata_section, PrevControllersEOFRecv):
-                self._prev_controllers_eof_recv = (
-                    metadata_section.prev_controllers_eof_recv()
-                )
-            elif isinstance(metadata_section, SortedDescDataBySessionId):
+            if isinstance(metadata_section, SortedDescDataBySessionId):
                 for (
                     session_id,
                     sorted_desc_data_dict,
@@ -221,27 +167,20 @@ class Sorter(Controller):
             str(SessionBatchMessages(messages)),
         )
 
-    def _save_current_state(self) -> None:
+    def _metadata_sections(self) -> list[MetadataSection]:
+        metadata_sections = super()._metadata_sections()
+
         sorted_desc_data_by_session_id = {}
         for (
             session_id,
             sorted_desc_data,
         ) in self._sorted_desc_data_by_session_id.items():
             sorted_desc_data_by_session_id[session_id] = sorted_desc_data.to_dict()
+        metadata_sections.append(
+            SortedDescDataBySessionId(sorted_desc_data_by_session_id)
+        )
 
-        metadata_sections = [
-            PrevControllersLastMessage(self._prev_controllers_last_message),
-            PrevControllersEOFRecv(self._prev_controllers_eof_recv),
-            SortedDescDataBySessionId(sorted_desc_data_by_session_id),
-        ]
-        metadata_sections_str = "".join([str(section) for section in metadata_sections])
-        self._atomic_writer.write(self._metadata_file_name, metadata_sections_str)
-
-    # ============================== PRIVATE - SIGNAL HANDLER ============================== #
-
-    def _stop(self) -> None:
-        self._mom_consumer.stop_consuming()
-        self._log_info("action: sigterm_mom_stop_consuming | result: success")
+        return metadata_sections
 
     # ============================== PRIVATE - HANDLE DATA ============================== #
 
@@ -283,14 +222,33 @@ class Sorter(Controller):
 
         return batch
 
-    # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
+    # ============================== PRIVATE - CLEAN SESSION ============================== #
 
-    def is_duplicate_message(self, message: Message) -> bool:
-        return self._duplicate_message_checker.is_duplicated(message)
+    def _clean_session_data_of(self, session_id: str) -> None:
+        self._log_info(
+            f"action: clean_session_data | result: in_progress | session_id: {session_id}"
+        )
+
+        self._prev_controllers_eof_recv.pop(session_id, None)
+        self._sorted_desc_data_by_session_id.pop(session_id, None)
+
+        path = self._results_dir / f"{self._results_file_prefix}{session_id}.txt"
+        if self._file_exists(path):
+            path.unlink()
+
+        self._log_info(
+            f"action: clean_session_data | result: success | session_id: {session_id}"
+        )
+
+    # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
     @abstractmethod
     def _mom_send_message_to_next(self, message: BatchMessage) -> None:
         raise NotImplementedError("subclass responsibility")
+
+    def _mom_send_message_through_all_producers(self, message: Message) -> None:
+        for mom_producer in self._mom_producers:
+            mom_producer.send(str(message))
 
     def _mom_send_all_messages_to_next(self, session_id: str) -> None:
         messages = self._load_results_to_be_sent(session_id)
@@ -345,26 +303,6 @@ class Sorter(Controller):
         for batch_item in message.batch_items():
             self._add_batch_item_keeping_sort_desc(session_id, batch_item)
 
-    def _mom_send_message_through_all_producers(self, message: Message) -> None:
-        for mom_producer in self._mom_producers:
-            mom_producer.send(str(message))
-
-    def _clean_session_data_of(self, session_id: str) -> None:
-        self._log_info(
-            f"action: clean_session_data | result: in_progress | session_id: {session_id}"
-        )
-
-        self._prev_controllers_eof_recv.pop(session_id, None)
-        self._sorted_desc_data_by_session_id.pop(session_id, None)
-
-        path = self._results_dir / f"{self._results_file_prefix}{session_id}.txt"
-        if self._file_exists(path):
-            path.unlink()
-
-        self._log_info(
-            f"action: clean_session_data | result: success | session_id: {session_id}"
-        )
-
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         session_id = message.session_id()
         prev_controller_id = message.controller_id()
@@ -416,41 +354,9 @@ class Sorter(Controller):
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
 
-    def _handle_received_data(self, message_as_bytes: bytes) -> None:
-        if not self._is_running():
-            self._mom_consumer.stop_consuming()
-            return
-
-        self._random_exit_with_error("before_message_processed")
-        message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
-        if not self.is_duplicate_message(message):
-            if isinstance(message, BatchMessage):
-                self._handle_data_batch_message(message)
-            elif isinstance(message, EOFMessage):
-                self._handle_data_batch_eof_message(message)
-            elif isinstance(message, CleanSessionMessage):
-                self._handle_clean_session_data_message(message)
-            self._random_exit_with_error("after_message_processed")
-            self._save_current_state()
-            self._random_exit_with_error("after_state_saved")
-        else:
-            self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
-            )
-
     # ============================== PRIVATE - RUN ============================== #
 
-    def _run(self) -> None:
-        super()._run()
-        self._load_last_state_if_exists()
-        self._mom_consumer.start_consuming(self._handle_received_data)
-
-    def _close_all(self) -> None:
-        super()._close_all()
+    def _close_all_producers(self) -> None:
         for mom_producer in self._mom_producers:
             mom_producer.close()
             self._log_debug("action: mom_producer_close | result: success")
-
-        self._mom_consumer.delete()
-        self._mom_consumer.close()
-        self._log_debug("action: mom_consumer_close | result: success")

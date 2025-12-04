@@ -13,15 +13,6 @@ class FilterTransactionsByHour(Filter):
 
     # ============================== INITIALIZE ============================== #
 
-    def _build_mom_consumer_using(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> MessageMiddleware:
-        queue_name_prefix = consumers_config["queue_name_prefix"]
-        queue_name = f"{queue_name_prefix}-{self._controller_id}"
-        return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
-
     def _build_mom_producer_using(
         self, rabbitmq_host: str, producers_config: dict[str, Any], producer_id: int
     ) -> tuple[MessageMiddleware, MessageMiddleware]:

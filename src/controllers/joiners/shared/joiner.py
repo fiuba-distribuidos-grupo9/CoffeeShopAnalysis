@@ -36,22 +36,6 @@ class Joiner(Controller):
     ) -> MessageMiddleware:
         raise NotImplementedError("subclass responsibility")
 
-    def _init_mom_consumers(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> None:
-        # do nothing
-        pass
-
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-    ) -> None:
-        # do nothing
-        pass
-
     def __init__(
         self,
         controller_id: int,
