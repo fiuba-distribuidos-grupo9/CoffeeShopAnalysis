@@ -3,12 +3,15 @@ import os
 import signal
 import socket
 import uuid
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared import constants
 from shared.communication_protocol import constants as cp_constants
 from shared.communication_protocol.batch_message import BatchMessage
+from shared.communication_protocol.duplicate_message_checker import (
+    DuplicateMessageChecker,
+)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.handshake_message import HandshakeMessage
 from shared.communication_protocol.message import Message
@@ -99,6 +102,9 @@ class ClientSessionHandler:
 
         self._temp_buffer = b""
 
+        self._prev_controllers_last_message: dict[int, Message] = {}
+        self._duplicate_message_checker = DuplicateMessageChecker(self)
+
     # ============================== PRIVATE - LOGGING ============================== #
 
     def _log_debug(self, text: str) -> None:
@@ -120,6 +126,12 @@ class ClientSessionHandler:
 
     def _set_as_running(self) -> None:
         self._process_running = True
+
+    def update_last_message(self, message: Message, controller_id: int) -> None:
+        self._prev_controllers_last_message[controller_id] = message
+
+    def last_message_of(self, controller_id: int) -> Optional[Message]:
+        return self._prev_controllers_last_message.get(controller_id)
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -336,13 +348,21 @@ class ClientSessionHandler:
                 f"action: eof_{data_type}_results_to_client_sent | result: success"
             )
 
+    def is_duplicate_message(self, message: Message) -> bool:
+        return self._duplicate_message_checker.is_duplicated(message)
+
     def _handle_output_builder_message(self, client_socket: socket.socket) -> Callable:
         def _on_message_callback(message_as_bytes: bytes) -> None:
             message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
-            if isinstance(message, BatchMessage):
-                self._handle_query_result_batch_message(client_socket, message)
-            elif isinstance(message, EOFMessage):
-                self._handle_query_result_eof_message(client_socket, message)
+            if not self.is_duplicate_message(message):
+                if isinstance(message, BatchMessage):
+                    self._handle_query_result_batch_message(client_socket, message)
+                elif isinstance(message, EOFMessage):
+                    self._handle_query_result_eof_message(client_socket, message)
+            else:
+                self._log_info(
+                    f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
+                )
 
             if self._all_eof_received_from_output_builders():
                 self._mom_output_builders_connection.stop_consuming()
