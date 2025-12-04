@@ -301,7 +301,3 @@ Para ejecutar el mismo se debe utilizar el siguente comando:
 ./generar-compose.sh docker-compose.yaml
 
 ```
-
-## 🎥 Desmotración de funcionamiento
-
-[🔗 Link al video tutorial de funcionamiento](https://drive.google.com/drive/folders/1iDnXWh1Dd8fJBw4gxLcIzglYpP3rrnXQ?usp=sharing)
