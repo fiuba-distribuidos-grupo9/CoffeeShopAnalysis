@@ -13,15 +13,6 @@ class FilterTransactionsByFinalAmount(Filter):
 
     # ============================== INITIALIZE ============================== #
 
-    def _build_mom_consumer_using(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> MessageMiddleware:
-        queue_name_prefix = consumers_config["queue_name_prefix"]
-        queue_name = f"{queue_name_prefix}-{self._controller_id}"
-        return RabbitMQMessageMiddlewareQueue(host=rabbitmq_host, queue_name=queue_name)
-
     def _build_mom_producer_using(
         self,
         rabbitmq_host: str,
@@ -50,6 +41,7 @@ class FilterTransactionsByFinalAmount(Filter):
         self,
         controller_id: int,
         rabbitmq_host: str,
+        health_listen_port: int,
         consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
         min_final_amount: float,
@@ -57,6 +49,7 @@ class FilterTransactionsByFinalAmount(Filter):
         super().__init__(
             controller_id,
             rabbitmq_host,
+            health_listen_port,
             consumers_config,
             producers_config,
         )

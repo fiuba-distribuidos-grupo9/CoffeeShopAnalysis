@@ -10,6 +10,7 @@ def main():
             "LOGGING_LEVEL",
             "CONTROLLER_ID",
             "RABBITMQ_HOST",
+            "HEALTH_LISTEN_PORT",
             "NEXT_CONTROLLERS_AMOUNT",
         ]
     )
@@ -18,6 +19,7 @@ def main():
 
     consumers_config = {
         "queue_name_prefix": constants.DIRTY_USR_QUEUE_PREFIX,
+        "prev_controllers_amount": 1,
     }
     producers_config = {
         "queue_name_prefix": constants.CLEANED_USR_4X_QUEUE_PREFIX,
@@ -27,6 +29,7 @@ def main():
     cleaner = UsersCleaner(
         controller_id=int(config_params["CONTROLLER_ID"]),
         rabbitmq_host=config_params["RABBITMQ_HOST"],
+        health_listen_port=int(config_params["HEALTH_LISTEN_PORT"]),
         consumers_config=consumers_config,
         producers_config=producers_config,
     )

@@ -36,35 +36,15 @@ class Joiner(Controller):
     ) -> MessageMiddleware:
         raise NotImplementedError("subclass responsibility")
 
-    def _init_mom_consumers(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> None:
-        # do nothing
-        pass
-
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-    ) -> None:
-        # do nothing
-        pass
-
     def __init__(
         self,
         controller_id: int,
         rabbitmq_host: str,
+        health_listen_port: int,
         consumers_config: dict[str, Any],
         producers_config: dict[str, Any],
     ) -> None:
-        super().__init__(
-            controller_id,
-            rabbitmq_host,
-            consumers_config,
-            producers_config,
-        )
+        super().__init__(controller_id, health_listen_port)
 
         self._controller_id = controller_id
         self._rabbitmq_host = rabbitmq_host
@@ -90,6 +70,8 @@ class Joiner(Controller):
 
         self._uncaught_exception: Optional[Exception] = None
         self._uncaught_exception_lock = threading.Lock()
+
+        self._stream_data_handler_able_to_event = threading.Event()
 
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
@@ -124,6 +106,7 @@ class Joiner(Controller):
                 all_base_data_received=self._all_base_data_received,
                 all_base_data_received_lock=self._all_base_data_received_lock,
                 is_stopped=self.is_stopped,
+                stream_data_handler_able_to_event=self._stream_data_handler_able_to_event,
             )
             self._base_data_handler.run()
         except Exception as e:
@@ -149,6 +132,7 @@ class Joiner(Controller):
                 join_key=self._join_key(),
                 transform_function=self._transform_function,
                 is_stopped=self.is_stopped,
+                stream_data_handler_able_to_event=self._stream_data_handler_able_to_event,
             )
             self._stream_data_handler.run()
         except Exception as e:

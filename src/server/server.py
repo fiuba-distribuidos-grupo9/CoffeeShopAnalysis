@@ -10,8 +10,8 @@ from typing import Any, Optional
 from server.client_session_cleaner import ClientSessionCleaner
 from server.client_session_handler import ClientSessionHandler
 from shared.file_protocol.atomic_writer import AtomicWriter
-from shared.file_protocol.metadata_sections.client_session_ids import ClientSessionIds
 from shared.file_protocol.metadata_reader import MetadataReader
+from shared.file_protocol.metadata_sections.client_session_ids import ClientSessionIds
 from shared.heartbeat_process import HeartbeatProcess
 
 
@@ -24,6 +24,7 @@ class Server:
         port: int,
         listen_backlog: int,
         rabbitmq_host: str,
+        health_listen_port: int,
         cleaners_data: dict,
         output_builders_data: dict,
     ) -> None:
@@ -42,7 +43,7 @@ class Server:
         self._client_spawned_processes: dict[str, multiprocessing.Process] = {}
 
         self._heartbeat_process: Optional[multiprocessing.Process] = None
-        self._heartbeat_process_port = 9201  # @TODO read from config
+        self._heartbeat_process_port = health_listen_port
 
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()

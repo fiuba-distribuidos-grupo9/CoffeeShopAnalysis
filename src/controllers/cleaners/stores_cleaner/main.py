@@ -10,7 +10,8 @@ def main():
             "LOGGING_LEVEL",
             "CONTROLLER_ID",
             "RABBITMQ_HOST",
-            "NEXT_CONTROLLERS_AMOUNT",  # @TODO: add another env variable
+            "HEALTH_LISTEN_PORT",
+            "NEXT_CONTROLLERS_AMOUNT",
         ]
     )
     initializer.init_log(config_params["LOGGING_LEVEL"])
@@ -18,6 +19,7 @@ def main():
 
     consumers_config = {
         "queue_name_prefix": constants.DIRTY_STR_QUEUE_PREFIX,
+        "prev_controllers_amount": 1,
     }
     producers_config = {
         "queue_name_prefix_1": constants.CLEANED_STR_3X_QUEUE_PREFIX,
@@ -29,6 +31,7 @@ def main():
     cleaner = StoresCleaner(
         controller_id=int(config_params["CONTROLLER_ID"]),
         rabbitmq_host=config_params["RABBITMQ_HOST"],
+        health_listen_port=int(config_params["HEALTH_LISTEN_PORT"]),
         consumers_config=consumers_config,
         producers_config=producers_config,
     )

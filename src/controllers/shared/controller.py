@@ -14,28 +14,10 @@ class Controller(ABC):
 
     # ============================== INITIALIZE ============================== #
 
-    @abstractmethod
-    def _init_mom_consumers(
-        self,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-    ) -> None:
-        raise NotImplementedError("subclass resposability")
-
-    @abstractmethod
-    def _init_mom_producers(
-        self,
-        rabbitmq_host: str,
-        producers_config: dict[str, Any],
-    ) -> None:
-        raise NotImplementedError("subclass resposability")
-
     def __init__(
         self,
         controller_id: int,
-        rabbitmq_host: str,
-        consumers_config: dict[str, Any],
-        producers_config: dict[str, Any],
+        health_listen_port: int,
     ) -> None:
         self._controller_id = controller_id
 
@@ -43,11 +25,8 @@ class Controller(ABC):
         self._set_controller_as_stopped()
         signal.signal(signal.SIGTERM, self._sigterm_signal_handler)
 
-        self._init_mom_consumers(rabbitmq_host, consumers_config)
-        self._init_mom_producers(rabbitmq_host, producers_config)
-
         self._heartbeat_process: Optional[multiprocessing.Process] = None
-        self._heartbeat_process_port = 9201  # @TODO read from config
+        self._heartbeat_process_port = health_listen_port
 
         self._random_exit_active = False
 

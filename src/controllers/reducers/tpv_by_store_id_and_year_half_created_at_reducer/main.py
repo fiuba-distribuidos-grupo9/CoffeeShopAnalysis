@@ -12,6 +12,7 @@ def main():
             "LOGGING_LEVEL",
             "CONTROLLER_ID",
             "RABBITMQ_HOST",
+            "HEALTH_LISTEN_PORT",
             "PREV_CONTROLLERS_AMOUNT",
             "NEXT_CONTROLLERS_AMOUNT",
             "BATCH_MAX_SIZE",
@@ -32,6 +33,7 @@ def main():
     controller = TpvByStoreIdAndYearHalfCreatedAtReducer(
         controller_id=int(config_params["CONTROLLER_ID"]),
         rabbitmq_host=config_params["RABBITMQ_HOST"],
+        health_listen_port=int(config_params["HEALTH_LISTEN_PORT"]),
         consumers_config=consumers_config,
         producers_config=producers_config,
         batch_max_size=int(config_params["BATCH_MAX_SIZE"]),
