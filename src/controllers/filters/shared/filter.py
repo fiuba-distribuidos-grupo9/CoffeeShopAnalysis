@@ -13,7 +13,9 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
+    PrevControllersEOFRecv,
+)
 from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
@@ -130,8 +132,14 @@ class Filter(Controller):
         for batch_item in message.batch_items():
             if self._should_be_included(batch_item):
                 updated_batch_items.append(batch_item)
-        message.update_batch_items(updated_batch_items)
-        return message
+
+        return BatchMessage(
+            message_type=message.message_type(),
+            session_id=message.session_id(),
+            message_id=message.message_id(),
+            controller_id=str(self._controller_id),
+            batch_items=updated_batch_items,
+        )
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -145,7 +153,6 @@ class Filter(Controller):
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         updated_message = self._transform_batch_message(message)
         if len(updated_message.batch_items()) > 0:
-            message.update_controller_id(str(self._controller_id))
             self._mom_send_message_to_next(updated_message)
 
     @abstractmethod
@@ -179,8 +186,14 @@ class Filter(Controller):
                 f"action: all_eofs_received | result: success | session_id: {session_id}"
             )
 
-            message.update_controller_id(str(self._controller_id))
-            self._mom_send_message_through_all_producers(message)
+            self._mom_send_message_through_all_producers(
+                EOFMessage(
+                    session_id=message.session_id(),
+                    message_id=message.message_id(),
+                    controller_id=str(self._controller_id),
+                    batch_message_type=message.batch_message_type(),
+                )
+            )
             self._log_info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )
@@ -195,8 +208,13 @@ class Filter(Controller):
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -217,7 +235,7 @@ class Filter(Controller):
             self._save_current_state()
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

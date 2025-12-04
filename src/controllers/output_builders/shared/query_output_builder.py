@@ -14,7 +14,9 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import PrevControllersEOFRecv
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
+    PrevControllersEOFRecv,
+)
 from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
@@ -148,8 +150,14 @@ class QueryOutputBuilder(Controller):
         for batch_item in message.batch_items():
             updated_batch_item = self._transform_batch_item(batch_item)
             updated_batch_items.append(updated_batch_item)
-        message.update_batch_items(updated_batch_items)
-        return message
+
+        return BatchMessage(
+            message_type=self._output_message_type(),
+            session_id=message.session_id(),
+            message_id=message.message_id(),
+            controller_id=str(self._controller_id),
+            batch_items=updated_batch_items,
+        )
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -159,14 +167,12 @@ class QueryOutputBuilder(Controller):
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         session_id = message.session_id()
         updated_message = self._transform_batch_message(message)
-        message.update_message_type(self._output_message_type())
         self._mom_producers.setdefault(
             session_id,
             RabbitMQMessageMiddlewareQueue(
                 self._rabbitmq_host, f"{self._queue_name_prefix}-{session_id}"
             ),
         )
-        message.update_controller_id(str(self._controller_id))
         self._mom_producers[session_id].send(str(updated_message))
 
     def _clean_session_data_of(self, session_id: str) -> None:
@@ -213,7 +219,6 @@ class QueryOutputBuilder(Controller):
                     self._rabbitmq_host, f"{self._queue_name_prefix}-{session_id}"
                 ),
             )
-            message.update_controller_id(str(self._controller_id))
             self._mom_producers[session_id].send(str(message))
             self._log_info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
@@ -245,7 +250,7 @@ class QueryOutputBuilder(Controller):
             self._save_current_state()
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

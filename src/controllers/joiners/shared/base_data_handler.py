@@ -281,7 +281,7 @@ class BaseDataHandler:
                 self._save_current_state(message.session_id())
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

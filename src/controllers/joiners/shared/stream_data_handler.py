@@ -261,8 +261,13 @@ class StreamDataHandler:
                     self._log_warning(
                         f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
                     )
-        stream_message.update_batch_items(joined_batch_items)
-        return stream_message
+        return BatchMessage(
+            message_type=stream_message.message_type(),
+            session_id=stream_message.session_id(),
+            message_id=stream_message.message_id(),
+            controller_id=str(self._controller_id),
+            batch_items=joined_batch_items,
+        )
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -289,7 +294,6 @@ class StreamDataHandler:
                 )
                 continue
 
-            joined_message.update_controller_id(str(self._controller_id))
             self._mom_send_message_to_next(joined_message)
 
             self._save_stream_data_section(session_id)
@@ -369,8 +373,14 @@ class StreamDataHandler:
 
                 self._send_all_buffered_messages(session_id)
 
-                message.update_controller_id(str(self._controller_id))
-                self._mom_send_message_through_all_producers(message)
+                self._mom_send_message_through_all_producers(
+                    EOFMessage(
+                        session_id=message.session_id(),
+                        message_id=message.message_id(),
+                        controller_id=str(self._controller_id),
+                        batch_message_type=message.batch_message_type(),
+                    )
+                )
                 self._log_info(
                     f"action: eof_sent | result: success | session_id: {session_id}"
                 )
@@ -396,8 +406,13 @@ class StreamDataHandler:
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -420,7 +435,7 @@ class StreamDataHandler:
                 self._save_current_state(message.session_id())
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

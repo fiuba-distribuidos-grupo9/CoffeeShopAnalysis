@@ -366,8 +366,14 @@ class Reducer(Controller):
 
             self._send_all_data_using_batchs(session_id)
 
-            message.update_controller_id(str(self._controller_id))
-            self._mom_send_message_through_all_producers(message)
+            self._mom_send_message_through_all_producers(
+                EOFMessage(
+                    session_id=message.session_id(),
+                    message_id=message.message_id(),
+                    controller_id=str(self._controller_id),
+                    batch_message_type=message.batch_message_type(),
+                )
+            )
             self._log_info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )
@@ -382,8 +388,13 @@ class Reducer(Controller):
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -404,7 +415,7 @@ class Reducer(Controller):
             self._save_current_state()
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

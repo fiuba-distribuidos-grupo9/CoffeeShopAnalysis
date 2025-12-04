@@ -198,9 +198,16 @@ class ClientSessionHandler:
 
         mom_producers = self._mom_cleaners_connections[data_type]
         for mom_producer in mom_producers:
-            message.update_message_id(uuid.UUID(int=0).hex)
-            message.update_controller_id(str(self._controller_id))
-            mom_producer.send(str(message))
+            mom_producer.send(
+                str(
+                    EOFMessage(
+                        session_id=message.session_id(),
+                        message_id=uuid.UUID(int=0).hex,
+                        controller_id=str(self._controller_id),
+                        batch_message_type=message.batch_message_type(),
+                    )
+                )
+            )
 
     # ============================== PRIVATE - RECEIVE CLIENT HANDSHAKE ============================== #
 
@@ -231,10 +238,15 @@ class ClientSessionHandler:
     # ============================== PRIVATE - RECEIVE CLIENT DATA ============================== #
 
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
-        message.update_message_id(uuid.uuid4().hex)
-        message.update_controller_id(str(self._controller_id))
-
-        self._mom_send_message_to_next(message)
+        self._mom_send_message_to_next(
+            BatchMessage(
+                message_type=message.message_type(),
+                session_id=message.session_id(),
+                message_id=uuid.uuid4().hex,
+                controller_id=str(self._controller_id),
+                batch_items=message.batch_items(),
+            )
+        )
 
     def _handle_data_batch_eof_message(self, message: EOFMessage) -> None:
         data_type = message.batch_message_type()
@@ -245,7 +257,14 @@ class ClientSessionHandler:
         self._client_eof_received[data_type] = True
         self._log_info(f"action: {data_type}_eof_received | result: success")
 
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            EOFMessage(
+                session_id=message.session_id(),
+                message_id=uuid.UUID(int=0).hex,
+                controller_id=str(self._controller_id),
+                batch_message_type=message.batch_message_type(),
+            )
+        )
         self._log_info(f"action: {data_type}_eof_sent | result: success")
 
     def _handle_client_message(self, message: Message) -> None:

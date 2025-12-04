@@ -176,20 +176,6 @@ class BatchMessage(Message):
 
         return constants.BATCH_ITEM_SEPARATOR.join(encoded_batch_items)
 
-    # ============================== UPDATING ============================== #
-
-    def update_message_type(self, new_message_type: str) -> None:
-        self._message_type = new_message_type
-
-    def update_message_id(self, new_message_id: str) -> None:
-        self._message_id = new_message_id
-
-    def update_controller_id(self, new_controller_id: str) -> None:
-        self._controller_id = new_controller_id
-
-    def update_batch_items(self, new_batch_items: list[dict[str, str]]) -> None:
-        self._batch_items = new_batch_items
-
     # ============================== VISITOR ============================== #
 
     def accept(self, visitor: Any) -> Any:
