@@ -1,4 +1,6 @@
 import logging
+import os
+import random
 import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -109,6 +111,18 @@ class StreamDataHandler:
         self._stream_data_dir = Path("stream_data")
         self._stream_data_dir.mkdir(parents=True, exist_ok=True)
         self._stream_data_file_prefix = Path("stream_data_")
+
+        self._random_exit_active = False
+
+    # ============================== PRIVATE - EXIT ============================== #
+
+    def _random_exit_with_error(self, message: str, prob: int = 1) -> None:
+        if not self._random_exit_active:
+            return
+        random_value = random.randint(1, 1000)
+        if random_value <= prob:
+            self._log_error(f"action: exit_1 | result: error | message: {message}")
+            os._exit(1)
 
     # ============================== PRIVATE - LOGGING ============================== #
 
@@ -294,9 +308,13 @@ class StreamDataHandler:
                 )
                 continue
 
+            self._random_exit_with_error("before_sending_joined_message", 10)
             self._mom_send_message_to_next(joined_message)
+            self._random_exit_with_error("after_sending_joined_message", 10)
 
+            self._random_exit_with_error("before_saving_stream_data_section", 10)
             self._save_stream_data_section(session_id)
+            self._random_exit_with_error("after_saving_stream_data_section", 10)
 
         self._log_info(
             f"action: send_all_buffered_messages | result: success | session_id: {session_id}"
@@ -426,13 +444,19 @@ class StreamDataHandler:
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
                 self._handle_data_batch_message_when_all_base_data_received(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, EOFMessage):
                 self._handle_data_batch_eof_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"

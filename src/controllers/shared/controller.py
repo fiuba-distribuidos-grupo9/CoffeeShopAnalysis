@@ -1,5 +1,7 @@
 import logging
 import multiprocessing
+import os
+import random
 import signal
 import threading
 from abc import ABC, abstractmethod
@@ -46,6 +48,18 @@ class Controller(ABC):
 
         self._heartbeat_process: Optional[multiprocessing.Process] = None
         self._heartbeat_process_port = 9201  # @TODO read from config
+
+        self._random_exit_active = False
+
+    # ============================== PRIVATE - EXIT ============================== #
+
+    def _random_exit_with_error(self, message: str, prob: int = 1) -> None:
+        if not self._random_exit_active:
+            return
+        random_value = random.randint(1, 1000)
+        if random_value <= prob:
+            self._log_error(f"action: exit_1 | result: error | message: {message}")
+            os._exit(1)
 
     # ============================== PRIVATE - LOGGING ============================== #
 

@@ -108,6 +108,8 @@ class Sorter(Controller):
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._results_file_prefix = Path("results_")
 
+        # self._random_exit_active = True
+
     # ============================== PRIVATE - ACCESSING ============================== #
 
     @abstractmethod
@@ -296,7 +298,9 @@ class Sorter(Controller):
         while len(messages) > 0:
             message = messages.pop(0)
             batch_size = len(message.batch_items())
+            self._random_exit_with_error("before_sending_batch", 10)
             self._mom_send_message_to_next(message)
+            self._random_exit_with_error("after_sending_batch", 10)
             self._log_debug(
                 f"action: batch_sent | result: success | session_id: {session_id} | batch_size: {batch_size}"
             )
@@ -326,7 +330,9 @@ class Sorter(Controller):
                 messages.append(message)
                 batch_items = self._take_next_batch(session_id)
 
+            self._random_exit_with_error("before_saving_results_to_be_sent", 10)
             self._save_results_to_be_sent(session_id, messages)
+            self._random_exit_with_error("after_saving_results_to_be_sent", 10)
 
         self._mom_send_all_messages_to_next(session_id)
 
@@ -415,6 +421,7 @@ class Sorter(Controller):
             self._mom_consumer.stop_consuming()
             return
 
+        self._random_exit_with_error("before_message_processed")
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
@@ -423,7 +430,9 @@ class Sorter(Controller):
                 self._handle_data_batch_eof_message(message)
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+            self._random_exit_with_error("after_message_processed")
             self._save_current_state()
+            self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"

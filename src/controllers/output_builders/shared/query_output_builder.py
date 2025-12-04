@@ -72,6 +72,8 @@ class QueryOutputBuilder(Controller):
 
         self._metadata_file_name = Path("metadata.txt")
 
+        # self._random_exit_active = True
+
     # ============================== PRIVATE - ACCESSING ============================== #
 
     def update_last_message(self, message: Message, controller_id: int) -> None:
@@ -239,6 +241,7 @@ class QueryOutputBuilder(Controller):
             self._mom_consumer.stop_consuming()
             return
 
+        self._random_exit_with_error("before_message_processed")
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
@@ -247,7 +250,9 @@ class QueryOutputBuilder(Controller):
                 self._handle_data_batch_eof_message(message)
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+            self._random_exit_with_error("after_message_processed")
             self._save_current_state()
+            self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
