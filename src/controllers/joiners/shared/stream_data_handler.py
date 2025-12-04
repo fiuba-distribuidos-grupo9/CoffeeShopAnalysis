@@ -157,6 +157,30 @@ class StreamDataHandler:
     def last_message_of(self, controller_id: int) -> Optional[Message]:
         return self._prev_controllers_last_message.get(controller_id)
 
+    # ============================== PRIVATE - METADATA - VISITOR ============================== #
+
+    def visit_prev_controllers_last_message(
+        self, metadata_section: PrevControllersLastMessage
+    ) -> None:
+        self._prev_controllers_last_message = (
+            metadata_section.prev_controllers_last_message()
+        )
+
+    def visit_prev_controllers_eof_recv(
+        self, metadata_section: PrevControllersEOFRecv
+    ) -> None:
+        self._prev_controllers_eof_recv = metadata_section.prev_controllers_eof_recv()
+
+    def visit_session_batch_messages(
+        self, metadata_section: SessionBatchMessages
+    ) -> None:
+        messages = metadata_section.batch_messages()
+        session_id = messages[0].session_id() if messages else None
+        if session_id is not None:
+            self._stream_data_buffer_by_session_id[session_id] = (
+                metadata_section.batch_messages()
+            )
+
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
     def _file_exists(self, path: Path) -> bool:
@@ -183,18 +207,7 @@ class StreamDataHandler:
             self._assert_is_file(path)
             metadata_sections = self._metadata_reader.read_from(path)
             for metadata_section in metadata_sections:
-                # @TODO: visitor pattern can be used here
-                if isinstance(metadata_section, SessionBatchMessages):
-                    session_id = path.stem.replace(
-                        str(self._stream_data_file_prefix), ""
-                    )
-                    self._stream_data_buffer_by_session_id[session_id] = (
-                        metadata_section.batch_messages()
-                    )
-                else:
-                    self._log_warning(
-                        f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                    )
+                metadata_section.accept(self)
 
         self._log_info(f"action: load_stream_data | result: success")
 
@@ -204,19 +217,7 @@ class StreamDataHandler:
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
-            # @TODO: visitor pattern can be used here
-            if isinstance(metadata_section, PrevControllersLastMessage):
-                self._prev_controllers_last_message = (
-                    metadata_section.prev_controllers_last_message()
-                )
-            elif isinstance(metadata_section, PrevControllersEOFRecv):
-                self._prev_controllers_eof_recv = (
-                    metadata_section.prev_controllers_eof_recv()
-                )
-            else:
-                self._log_warning(
-                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                )
+            metadata_section.accept(self)
 
         self._load_stream_data()
 
@@ -292,6 +293,29 @@ class StreamDataHandler:
             controller_id=str(self._controller_id),
             batch_items=joined_batch_items,
         )
+
+    # ============================== PRIVATE - MESSAGE - VISITOR ============================== #
+
+    def visit_batch_message(self, message: BatchMessage) -> None:
+        self._handle_data_batch_message_when_all_base_data_received(message)
+        self._random_exit_with_error("after_message_processed")
+        self._save_current_state(message.session_id())
+        self._random_exit_with_error("after_state_saved")
+
+    def visit_clean_session_message(self, message: CleanSessionMessage) -> None:
+        self._handle_clean_session_data_message(message)
+        self._random_exit_with_error("after_message_processed")
+        self._save_current_state(message.session_id())
+        self._random_exit_with_error("after_state_saved")
+
+    def visit_eof_message(self, message: EOFMessage) -> None:
+        self._handle_data_batch_eof_message(message)
+        self._random_exit_with_error("after_message_processed")
+        self._save_current_state(message.session_id())
+        self._random_exit_with_error("after_state_saved")
+
+    def visit_handshake_message(self, message: Message) -> None:
+        raise ValueError("This message type should't be here")
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -451,21 +475,7 @@ class StreamDataHandler:
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
-            if isinstance(message, BatchMessage):
-                self._handle_data_batch_message_when_all_base_data_received(message)
-                self._random_exit_with_error("after_message_processed")
-                self._save_current_state(message.session_id())
-                self._random_exit_with_error("after_state_saved")
-            elif isinstance(message, EOFMessage):
-                self._handle_data_batch_eof_message(message)
-                self._random_exit_with_error("after_message_processed")
-                self._save_current_state(message.session_id())
-                self._random_exit_with_error("after_state_saved")
-            elif isinstance(message, CleanSessionMessage):
-                self._handle_clean_session_data_message(message)
-                self._random_exit_with_error("after_message_processed")
-                self._save_current_state(message.session_id())
-                self._random_exit_with_error("after_state_saved")
+            message.accept(self)
         else:
             self._log_info(
                 f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"

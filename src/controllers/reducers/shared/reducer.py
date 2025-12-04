@@ -71,6 +71,28 @@ class Reducer(SingleConsumerController):
 
         # self._random_exit_active = True
 
+    # ============================== PRIVATE - METADATA - VISITOR ============================== #
+
+    def visit_reduced_data_by_session_id(
+        self, metadata_section: ReducedDataBySessionId
+    ) -> None:
+        for (
+            session_id,
+            reduced_data_dict,
+        ) in metadata_section.reduced_data_by_session_id().items():
+            reduced_data = ReducedData(
+                self._keys(),
+                self._accumulator_name(),
+                self._reduce_function,
+            )
+            reduced_data.replace(reduced_data_dict)
+            self._reduced_data_by_session_id[session_id] = reduced_data
+
+    def visit_session_batch_messages(
+        self, metadata_section: SessionBatchMessages
+    ) -> list[BatchMessage]:
+        return metadata_section.batch_messages()
+
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
     def _load_results_to_be_sent(self, session_id: str) -> list[BatchMessage]:
@@ -84,43 +106,11 @@ class Reducer(SingleConsumerController):
         self._assert_is_file(path)
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
-            if isinstance(metadata_section, SessionBatchMessages):
-                messages = metadata_section.batch_messages()
-            else:
-                self._log_warning(
-                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                )
+            messages = metadata_section.accept(self)
 
         self._log_info(f"action: load_results_to_be_sent | result: success")
 
         return messages
-
-    def _load_last_state(self) -> None:
-        super()._load_last_state()
-
-        path = self._metadata_file_name
-        self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
-
-        metadata_sections = self._metadata_reader.read_from(path)
-        for metadata_section in metadata_sections:
-            if isinstance(metadata_section, ReducedDataBySessionId):
-                for (
-                    session_id,
-                    reduced_data_dict,
-                ) in metadata_section.reduced_data_by_session_id().items():
-                    reduced_data = ReducedData(
-                        self._keys(),
-                        self._accumulator_name(),
-                        self._reduce_function,
-                    )
-                    reduced_data.replace(reduced_data_dict)
-                    self._reduced_data_by_session_id[session_id] = reduced_data
-            else:
-                self._log_warning(
-                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                )
-
-        self._log_info(f"action: load_last_state | result: success | file: {path}")
 
     def _save_results_to_be_sent(
         self, session_id: str, messages: list[BatchMessage]

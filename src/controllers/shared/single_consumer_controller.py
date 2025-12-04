@@ -89,6 +89,20 @@ class SingleConsumerController(Controller):
     def last_message_of(self, controller_id: int) -> Optional[Message]:
         return self._prev_controllers_last_message.get(controller_id)
 
+    # ============================== PRIVATE - METADATA - VISITOR ============================== #
+
+    def visit_prev_controllers_last_message(
+        self, metadata_section: PrevControllersLastMessage
+    ) -> None:
+        self._prev_controllers_last_message = (
+            metadata_section.prev_controllers_last_message()
+        )
+
+    def visit_prev_controllers_eof_recv(
+        self, metadata_section: PrevControllersEOFRecv
+    ) -> None:
+        self._prev_controllers_eof_recv = metadata_section.prev_controllers_eof_recv()
+
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
     def _file_exists(self, path: Path) -> bool:
@@ -108,15 +122,7 @@ class SingleConsumerController(Controller):
 
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
-            # @TODO: visitor pattern can be used here
-            if isinstance(metadata_section, PrevControllersLastMessage):
-                self._prev_controllers_last_message = (
-                    metadata_section.prev_controllers_last_message()
-                )
-            elif isinstance(metadata_section, PrevControllersEOFRecv):
-                self._prev_controllers_eof_recv = (
-                    metadata_section.prev_controllers_eof_recv()
-                )
+            metadata_section.accept(self)
 
         self._log_info(f"action: load_last_state | result: success | file: {path}")
 
@@ -146,6 +152,20 @@ class SingleConsumerController(Controller):
         self._mom_consumer.stop_consuming()
         self._log_info("action: sigterm_mom_stop_consuming | result: success")
 
+    # ============================== PRIVATE - MESSAGE - VISITOR ============================== #
+
+    def visit_batch_message(self, message: BatchMessage) -> None:
+        self._handle_data_batch_message(message)
+
+    def visit_clean_session_message(self, message: CleanSessionMessage) -> None:
+        self._handle_clean_session_data_message(message)
+
+    def visit_eof_message(self, message: EOFMessage) -> None:
+        self._handle_data_batch_eof_message(message)
+
+    def visit_handshake_message(self, message: Message) -> None:
+        raise ValueError("This message type should't be here")
+
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
     def is_duplicate_message(self, message: Message) -> bool:
@@ -172,12 +192,7 @@ class SingleConsumerController(Controller):
 
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
-            if isinstance(message, BatchMessage):
-                self._handle_data_batch_message(message)
-            elif isinstance(message, EOFMessage):
-                self._handle_data_batch_eof_message(message)
-            elif isinstance(message, CleanSessionMessage):
-                self._handle_clean_session_data_message(message)
+            message.accept(self)
 
             self._random_exit_with_error("after_message_processed")
             self._save_current_state()

@@ -97,6 +97,29 @@ class Sorter(SingleConsumerController):
     def last_message_of(self, controller_id: int) -> Optional[Message]:
         return self._prev_controllers_last_message.get(controller_id)
 
+    # ============================== PRIVATE - METADATA - VISITOR ============================== #
+
+    def visit_sorted_desc_data_by_session_id(
+        self, metadata_section: SortedDescDataBySessionId
+    ) -> None:
+        for (
+            session_id,
+            sorted_desc_data_dict,
+        ) in metadata_section.sorted_desc_data_by_session_id().items():
+            sorted_desc_data = SortedDescData(
+                self._grouping_key(),
+                self._primary_sort_key(),
+                self._secondary_sort_key(),
+                self._amount_per_group,
+            )
+            sorted_desc_data.replace(sorted_desc_data_dict)
+            self._sorted_desc_data_by_session_id[session_id] = sorted_desc_data
+
+    def visit_session_batch_messages(
+        self, metadata_section: SessionBatchMessages
+    ) -> list[BatchMessage]:
+        return metadata_section.batch_messages()
+
     # ============================== PRIVATE - MANAGING STATE ============================== #
 
     def _load_results_to_be_sent(self, session_id: str) -> list[BatchMessage]:
@@ -110,54 +133,11 @@ class Sorter(SingleConsumerController):
         self._assert_is_file(path)
         metadata_sections = self._metadata_reader.read_from(path)
         for metadata_section in metadata_sections:
-            if isinstance(metadata_section, SessionBatchMessages):
-                messages = metadata_section.batch_messages()
-            else:
-                self._log_warning(
-                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                )
+            messages = metadata_section.accept(self)
 
         self._log_info(f"action: load_results_to_be_sent | result: success")
 
         return messages
-
-    def _load_last_state(self) -> None:
-        super()._load_last_state()
-
-        path = self._metadata_file_name
-        self._log_info(f"action: load_last_state | result: in_progress | file: {path}")
-
-        metadata_sections = self._metadata_reader.read_from(path)
-        for metadata_section in metadata_sections:
-            # @TODO: visitor pattern can be used here
-            if isinstance(metadata_section, SortedDescDataBySessionId):
-                for (
-                    session_id,
-                    sorted_desc_data_dict,
-                ) in metadata_section.sorted_desc_data_by_session_id().items():
-                    sorted_desc_data = SortedDescData(
-                        self._grouping_key(),
-                        self._primary_sort_key(),
-                        self._secondary_sort_key(),
-                        self._amount_per_group,
-                    )
-                    sorted_desc_data.replace(sorted_desc_data_dict)
-                    self._sorted_desc_data_by_session_id[session_id] = sorted_desc_data
-            else:
-                self._log_warning(
-                    f"action: unknown_metadata_section | result: error | section: {metadata_section}"
-                )
-
-        self._log_info(f"action: load_last_state | result: success | file: {path}")
-
-    def _load_last_state_if_exists(self) -> None:
-        path = self._metadata_file_name
-        if path.exists() and path.is_file():
-            self._load_last_state()
-        else:
-            self._log_info(
-                f"action: load_last_state_skipped | result: success | file: {path}"
-            )
 
     def _save_results_to_be_sent(
         self, session_id: str, messages: list[BatchMessage]

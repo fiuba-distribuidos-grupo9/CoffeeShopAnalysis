@@ -1,26 +1,11 @@
 from abc import abstractmethod
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from controllers.shared.controller import Controller
 from controllers.shared.single_consumer_controller import SingleConsumerController
-from middleware.middleware import MessageMiddleware
-from middleware.rabbitmq_message_middleware_queue import RabbitMQMessageMiddlewareQueue
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.clean_session_message import CleanSessionMessage
-from shared.communication_protocol.duplicate_message_checker import (
-    DuplicateMessageChecker,
-)
 from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
-from shared.file_protocol.atomic_writer import AtomicWriter
-from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
-    PrevControllersEOFRecv,
-)
-from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
-    PrevControllersLastMessage,
-)
 
 
 class Filter(SingleConsumerController):
