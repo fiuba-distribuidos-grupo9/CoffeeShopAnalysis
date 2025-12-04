@@ -18,16 +18,25 @@ class ReducedDataBySessionId(MetadataSection):
         json_codec = JSONCodec()
         _, lines = row_section
 
-        reduced_data_by_session_id: dict[str, dict[tuple, float]] = {}
-
+        modified_reduced_data_by_session_id: dict[str, dict[str, float]] = {}
         for line in lines:
             session_id, reduced_data_str = line.split(constants.DICT_KEY_SEPARATOR, 1)
-            modified_reduced_data = json_codec.decode(reduced_data_str)
+            modified_reduced_data: dict[str, float] = json_codec.decode(
+                reduced_data_str
+            )
+            modified_reduced_data_by_session_id[session_id] = modified_reduced_data
+
+        reduced_data_by_session_id: dict[str, dict[tuple, float]] = {}
+        for (
+            session_id,
+            modified_reduced_data,
+        ) in modified_reduced_data_by_session_id.items():
             reduced_data: dict[tuple, float] = {}
-            for key_str in modified_reduced_data.keys():
-                key_tuple = tuple(map(str, key_str.split(",")))
-                reduced_data[key_tuple] = modified_reduced_data[key_str]
-            reduced_data_by_session_id[session_id] = modified_reduced_data
+            for key_str, value in modified_reduced_data.items():
+                key_str_clean = key_str.strip("()")
+                key_tuple = tuple(item.strip() for item in key_str_clean.split("|"))
+                reduced_data[key_tuple] = value
+            reduced_data_by_session_id[session_id] = reduced_data
 
         return cls(reduced_data_by_session_id)
 
@@ -48,7 +57,7 @@ class ReducedDataBySessionId(MetadataSection):
         for session_id, reduced_data in self._reduced_data_by_session_id.items():
             modified_reduced_data = {}
             for key in reduced_data.keys():
-                new_key = ",".join(map(str, key))
+                new_key = "(" + "|".join(map(str, key)) + ")"
                 modified_reduced_data[new_key] = reduced_data[key]
             modified_reduced_data_by_session_id[session_id] = modified_reduced_data
 
