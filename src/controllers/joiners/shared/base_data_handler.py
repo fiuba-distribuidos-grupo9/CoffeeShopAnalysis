@@ -251,8 +251,6 @@ class BaseDataHandler:
             with self._all_base_data_received_lock:
                 self._all_base_data_received[session_id] = True
 
-            self._prev_controllers_eof_recv.pop(session_id, None)
-
     def _handle_clean_session_data_message(self, message: CleanSessionMessage) -> None:
         session_id = message.session_id()
         self._log_info(
