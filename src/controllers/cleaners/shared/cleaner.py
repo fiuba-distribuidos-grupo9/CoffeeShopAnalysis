@@ -13,7 +13,7 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
 
@@ -53,6 +53,8 @@ class Cleaner(Controller):
         self._atomic_writer = AtomicWriter()
 
         self._metadata_file_name = Path("metadata.txt")
+
+        # self._random_exit_active = True
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -121,8 +123,14 @@ class Cleaner(Controller):
         for batch_item in message.batch_items():
             updated_batch_item = self._transform_batch_item(batch_item)
             updated_batch_items.append(updated_batch_item)
-        message.update_batch_items(updated_batch_items)
-        return message
+
+        return BatchMessage(
+            message_type=message.message_type(),
+            session_id=message.session_id(),
+            message_id=message.message_id(),
+            controller_id=str(self._controller_id),
+            batch_items=updated_batch_items,
+        )
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -135,7 +143,6 @@ class Cleaner(Controller):
 
     def _handle_data_batch_message(self, message: BatchMessage) -> None:
         updated_message = self._transform_batch_message(message)
-        message.update_controller_id(str(self._controller_id))
         self._mom_send_message_to_next(updated_message)
 
     @abstractmethod
@@ -157,8 +164,14 @@ class Cleaner(Controller):
             f"action: eof_received | result: success | session_id: {session_id}"
         )
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            EOFMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+                batch_message_type=message.batch_message_type(),
+            )
+        )
         self._log_info(
             f"action: eof_sent | result: success | session_id: {session_id}",
         )
@@ -173,8 +186,13 @@ class Cleaner(Controller):
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -184,6 +202,7 @@ class Cleaner(Controller):
             self._mom_consumer.stop_consuming()
             return
 
+        self._random_exit_with_error("before_message_processed")
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
             # @TODO: visitor pattern can be used here
@@ -193,10 +212,12 @@ class Cleaner(Controller):
                 self._handle_data_batch_eof_message(message)
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+            self._random_exit_with_error("after_message_processed")
             self._save_current_state()
+            self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

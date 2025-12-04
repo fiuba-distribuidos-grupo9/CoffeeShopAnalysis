@@ -2,7 +2,7 @@ from typing import Any
 
 from shared.file_protocol import constants
 from shared.file_protocol.json_codec import JSONCodec
-from shared.file_protocol.metadata_section import MetadataSection
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 
 
 class ReducedDataBySessionId(MetadataSection):
@@ -18,11 +18,24 @@ class ReducedDataBySessionId(MetadataSection):
         json_codec = JSONCodec()
         _, lines = row_section
 
-        reduced_data_by_session_id: dict[str, dict[tuple, float]] = {}
-
+        modified_reduced_data_by_session_id: dict[str, dict[str, float]] = {}
         for line in lines:
             session_id, reduced_data_str = line.split(constants.DICT_KEY_SEPARATOR, 1)
-            reduced_data = json_codec.decode(reduced_data_str)
+            modified_reduced_data: dict[str, float] = json_codec.decode(
+                reduced_data_str
+            )
+            modified_reduced_data_by_session_id[session_id] = modified_reduced_data
+
+        reduced_data_by_session_id: dict[str, dict[tuple, float]] = {}
+        for (
+            session_id,
+            modified_reduced_data,
+        ) in modified_reduced_data_by_session_id.items():
+            reduced_data: dict[tuple, float] = {}
+            for key_str, value in modified_reduced_data.items():
+                key_str_clean = key_str.strip("()")
+                key_tuple = tuple(item.strip() for item in key_str_clean.split("|"))
+                reduced_data[key_tuple] = value
             reduced_data_by_session_id[session_id] = reduced_data
 
         return cls(reduced_data_by_session_id)
@@ -39,8 +52,17 @@ class ReducedDataBySessionId(MetadataSection):
     def _payload_for_file(self) -> str:
         json_codec = JSONCodec()
         # <session_id>:<reduced_data_json>\n
-        payload = ""
+
+        modified_reduced_data_by_session_id: dict[str, dict[str, float]] = {}
         for session_id, reduced_data in self._reduced_data_by_session_id.items():
+            modified_reduced_data = {}
+            for key in reduced_data.keys():
+                new_key = "(" + "|".join(map(str, key)) + ")"
+                modified_reduced_data[new_key] = reduced_data[key]
+            modified_reduced_data_by_session_id[session_id] = modified_reduced_data
+
+        payload = ""
+        for session_id, reduced_data in modified_reduced_data_by_session_id.items():
             payload += f"{session_id}"
             payload += constants.DICT_KEY_SEPARATOR
             payload += json_codec.encode(reduced_data)

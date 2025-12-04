@@ -328,13 +328,6 @@ class Client:
         )
 
     def _handle_server_message(self, message: Message, all_eof_received: dict) -> None:
-        if isinstance(message, BatchMessage) or isinstance(message, EOFMessage):
-            session_id = message.session_id()
-            if session_id != self._session_id:
-                raise ValueError(
-                    f"Session ID mismatch: expected {self._session_id}, received {session_id}"
-                )
-
         if isinstance(message, BatchMessage):
             self._handle_query_result_message(message)
         elif isinstance(message, EOFMessage):

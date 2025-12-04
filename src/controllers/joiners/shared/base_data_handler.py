@@ -1,4 +1,6 @@
 import logging
+import os
+import random
 import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -13,11 +15,15 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
+    PrevControllersEOFRecv,
+)
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
-from shared.file_protocol.session_batch_messages import SessionBatchMessages
+from shared.file_protocol.metadata_sections.session_batch_messages import (
+    SessionBatchMessages,
+)
 
 
 class BaseDataHandler:
@@ -76,6 +82,18 @@ class BaseDataHandler:
         self._base_data_dir.mkdir(parents=True, exist_ok=True)
         self._base_data_file_prefix = Path("base_data_")
 
+        self._random_exit_active = False
+
+    # ============================== PRIVATE - EXIT ============================== #
+
+    def _random_exit_with_error(self, message: str, prob: int = 1) -> None:
+        if not self._random_exit_active:
+            return
+        random_value = random.randint(1, 1000)
+        if random_value <= prob:
+            self._log_error(f"action: exit_1 | result: error | message: {message}")
+            os._exit(1)
+
     # ============================== PRIVATE - LOGGING ============================== #
 
     def _log_debug(self, text: str) -> None:
@@ -105,12 +123,12 @@ class BaseDataHandler:
         return self._prev_controllers_last_message.get(controller_id)
 
     # ============================== PRIVATE - MANAGING STATE ============================== #
-    
+
     def _file_exists(self, path: Path) -> bool:
         return path.exists() and path.is_file()
 
     def _assert_is_file(self, path: Path) -> None:
-        if not self._file_exists():
+        if not self._file_exists(path):
             raise ValueError(f"Data path error: {path} is not a file")
 
     def _assert_is_dir(self, path: Path) -> None:
@@ -181,7 +199,7 @@ class BaseDataHandler:
                 self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
             )
             batch_messages = self._base_data_by_session_id.get(session_id, None)
-            if batch_messages:
+            if batch_messages is not None:
                 self._atomic_writer.write(
                     path,
                     str(SessionBatchMessages(batch_messages)),
@@ -209,25 +227,6 @@ class BaseDataHandler:
             if message not in self._base_data_by_session_id[session_id]:
                 self._base_data_by_session_id[session_id].append(message)
 
-    def _clean_session_data_of(self, session_id: str) -> None:
-        self._log_info(
-            f"action: clean_session_data | result: in_progress | session_id: {session_id}"
-        )
-
-        self._prev_controllers_eof_recv.pop(session_id, None)
-
-        with self._base_data_by_session_id_lock:
-            self._base_data_by_session_id.pop(session_id, None)
-            path = (
-                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
-            )
-            if self._file_exists(path):
-                path.unlink()
-
-        self._log_info(
-            f"action: clean_session_data | result: success | session_id: {session_id}"
-        )
-
     def _handle_base_data_batch_eof(self, message: EOFMessage) -> None:
         session_id = message.session_id()
         prev_controller_id = message.controller_id()
@@ -247,7 +246,24 @@ class BaseDataHandler:
             with self._all_base_data_received_lock:
                 self._all_base_data_received[session_id] = True
 
-            self._prev_controllers_eof_recv.pop(session_id, None)
+    def _clean_session_data_of(self, session_id: str) -> None:
+        self._log_info(
+            f"action: clean_session_data | result: in_progress | session_id: {session_id}"
+        )
+
+        self._prev_controllers_eof_recv.pop(session_id, None)
+
+        with self._base_data_by_session_id_lock:
+            self._base_data_by_session_id.pop(session_id, None)
+            path = (
+                self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
+            )
+            if self._file_exists(path):
+                path.unlink()
+
+        self._log_info(
+            f"action: clean_session_data | result: success | session_id: {session_id}"
+        )
 
     def _handle_clean_session_data_message(self, message: CleanSessionMessage) -> None:
         session_id = message.session_id()
@@ -266,20 +282,27 @@ class BaseDataHandler:
             self._mom_consumer.stop_consuming()
             return
 
+        self._random_exit_with_error("before_message_processed")
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
                 self._handle_base_data_batch_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, EOFMessage):
                 self._handle_base_data_batch_eof(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

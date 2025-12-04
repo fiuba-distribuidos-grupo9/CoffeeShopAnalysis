@@ -93,14 +93,6 @@ class CleanSessionMessage(Message):
             metadata_parts.append(self._controller_id)
         return constants.METADATA_SEPARATOR.join(metadata_parts)
 
-    # ============================== UPDATING ============================== #
-
-    def update_message_id(self, new_message_id: str) -> None:
-        self._message_id = new_message_id
-
-    def update_controller_id(self, new_controller_id: str) -> None:
-        self._controller_id = new_controller_id
-
     # ============================== VISITOR ============================== #
 
     def accept(self, visitor: Any) -> Any:

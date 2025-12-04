@@ -10,7 +10,7 @@ from typing import Any, Optional
 from server.client_session_cleaner import ClientSessionCleaner
 from server.client_session_handler import ClientSessionHandler
 from shared.file_protocol.atomic_writer import AtomicWriter
-from shared.file_protocol.client_session_ids import ClientSessionIds
+from shared.file_protocol.metadata_sections.client_session_ids import ClientSessionIds
 from shared.file_protocol.metadata_reader import MetadataReader
 from shared.heartbeat_process import HeartbeatProcess
 

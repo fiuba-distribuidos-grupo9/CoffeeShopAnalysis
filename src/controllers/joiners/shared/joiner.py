@@ -171,12 +171,12 @@ class Joiner(Controller):
     def _close_all(self) -> None:
         super()._close_all()
         self._base_data_thread.join()
-        self._log_info(f"action: {self._base_data_thread.name}_join | result: success")
+        thread_name = self._base_data_thread.name
+        self._log_info(f"action: {thread_name}_join | result: success")
 
         self._stream_data_thread.join()
-        self._log_info(
-            f"action: {self._stream_data_thread.name}_join | result: success"
-        )
+        thread_name = self._stream_data_thread.name
+        self._log_info(f"action: {thread_name}_join | result: success")
 
         with self._uncaught_exception_lock:
             if self._uncaught_exception is not None:

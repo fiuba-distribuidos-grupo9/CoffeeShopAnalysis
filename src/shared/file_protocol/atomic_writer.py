@@ -12,6 +12,6 @@ class AtomicWriter:
             if n < len(data):
                 raise IOError("Failed to write all data to temporary file")
             file.flush()
-            # os.fsync(file.fileno())
+            os.fsync(file.fileno())
 
         os.rename(tmp_path, path)

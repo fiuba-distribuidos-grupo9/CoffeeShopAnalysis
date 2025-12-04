@@ -3,6 +3,7 @@ import os
 import signal
 import socket
 from typing import Any, Callable
+
 from .models import Message
 
 
@@ -13,8 +14,8 @@ class HeartbeatProcess:
     def __init__(self, port: int) -> None:
         self._port = port
 
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.bind(("", port))
+        self._health_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._health_socket.bind(("", port))
 
         self._set_as_not_running()
         signal.signal(signal.SIGTERM, self._sigterm_signal_handler)
@@ -60,22 +61,17 @@ class HeartbeatProcess:
 
         while self._is_running():
             try:
-                data, addr = self._sock.recvfrom(64 * 1024)
+                data, addr = self._health_socket.recvfrom(64 * 1024)
                 msg = Message.from_json(data.decode("utf-8"))
-                
+
                 if msg.kind != "heartbeat":
                     continue
 
-                ack = Message(
-                    kind="heartbeat_ack",
-                    src_id=0,
-                    src_name="",
-                    payload={}
-                )
+                ack = Message(kind="heartbeat_ack", src_id=0, src_name="", payload={})
 
                 data = ack.to_json().encode("utf-8")
-                self._sock.sendto(data, addr)
-                
+                self._health_socket.sendto(data, addr)
+
             except socket.timeout:
                 return None
             except OSError as e:
@@ -84,39 +80,34 @@ class HeartbeatProcess:
                     self._closed = True
                 elif errno == -2:
                     logging.warning(
-                        f"action: send_message | result: fail | reason: dns_error")
-                else:
-                    logging.error(
-                        f"action: send_message | result: fail |  error: {e}"
+                        f"action: send_message | result: fail | reason: dns_error"
                     )
+                else:
+                    logging.error(f"action: send_message | result: fail |  error: {e}")
                 break
             except Exception as e:
-                logging.error(
-                    f"action: receive_message | result: fail | error: {e}"
-                )
+                logging.error(f"action: receive_message | result: fail | error: {e}")
                 break
             finally:
                 self._close_socket()
-    
+
     def _close_socket(self) -> None:
         try:
-            if self._sock is None:
-                return
             if self._closed:
                 return
-            if getattr(self._sock, "_closed", False):
+            if getattr(self._health_socket, "_closed", False):
                 return
-            if self._sock.fileno() == -1:
+            if self._health_socket.fileno() == -1:
                 return
-            
+
             try:
-                self._sock.shutdown(socket.SHUT_RDWR)
+                self._health_socket.shutdown(socket.SHUT_RDWR)
             except Exception:
-                    pass
+                pass
             try:
-                self._sock.close()
+                self._health_socket.close()
             except Exception:
-                    pass
+                pass
             return
         except Exception:
             return

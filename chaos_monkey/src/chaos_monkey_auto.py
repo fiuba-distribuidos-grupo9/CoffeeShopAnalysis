@@ -6,7 +6,7 @@ import docker
 from pathlib import Path
 
 # Constants.
-ENV_PATH = P1ath(__file__).parent / ".env"
+ENV_PATH = Path(__file__).parent / ".env"
 
 # Environment loader.
 def load_env(path: Path):

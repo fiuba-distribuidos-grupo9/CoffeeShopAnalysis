@@ -3,7 +3,7 @@ from pathlib import Path
 
 from shared import constants
 from shared.file_protocol import constants as fp_constants
-from shared.file_protocol.metadata_section import MetadataSection
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 
 
 class MetadataReader:

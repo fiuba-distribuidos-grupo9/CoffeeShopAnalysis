@@ -15,12 +15,16 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
+    PrevControllersEOFRecv,
+)
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
-from shared.file_protocol.session_batch_messages import SessionBatchMessages
-from shared.file_protocol.sorted_desc_data_by_session_id import (
+from shared.file_protocol.metadata_sections.session_batch_messages import (
+    SessionBatchMessages,
+)
+from shared.file_protocol.metadata_sections.sorted_desc_data_by_session_id import (
     SortedDescDataBySessionId,
 )
 
@@ -103,6 +107,8 @@ class Sorter(Controller):
         self._results_dir = Path("results")
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._results_file_prefix = Path("results_")
+
+        # self._random_exit_active = True
 
     # ============================== PRIVATE - ACCESSING ============================== #
 
@@ -292,7 +298,9 @@ class Sorter(Controller):
         while len(messages) > 0:
             message = messages.pop(0)
             batch_size = len(message.batch_items())
+            self._random_exit_with_error("before_sending_batch", 10)
             self._mom_send_message_to_next(message)
+            self._random_exit_with_error("after_sending_batch", 10)
             self._log_debug(
                 f"action: batch_sent | result: success | session_id: {session_id} | batch_size: {batch_size}"
             )
@@ -322,7 +330,9 @@ class Sorter(Controller):
                 messages.append(message)
                 batch_items = self._take_next_batch(session_id)
 
+            self._random_exit_with_error("before_saving_results_to_be_sent", 10)
             self._save_results_to_be_sent(session_id, messages)
+            self._random_exit_with_error("after_saving_results_to_be_sent", 10)
 
         self._mom_send_all_messages_to_next(session_id)
 
@@ -373,8 +383,14 @@ class Sorter(Controller):
 
             self._send_all_data_using_batchs(session_id)
 
-            message.update_controller_id(str(self._controller_id))
-            self._mom_send_message_through_all_producers(message)
+            self._mom_send_message_through_all_producers(
+                EOFMessage(
+                    session_id=message.session_id(),
+                    message_id=message.message_id(),
+                    controller_id=str(self._controller_id),
+                    batch_message_type=message.batch_message_type(),
+                )
+            )
             self._log_info(
                 f"action: eof_sent | result: success | session_id: {session_id}"
             )
@@ -389,8 +405,13 @@ class Sorter(Controller):
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -400,6 +421,7 @@ class Sorter(Controller):
             self._mom_consumer.stop_consuming()
             return
 
+        self._random_exit_with_error("before_message_processed")
         message = Message.suitable_for_str(message_as_bytes.decode("utf-8"))
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
@@ -408,10 +430,12 @@ class Sorter(Controller):
                 self._handle_data_batch_eof_message(message)
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+            self._random_exit_with_error("after_message_processed")
             self._save_current_state()
+            self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

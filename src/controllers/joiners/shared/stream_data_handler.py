@@ -1,4 +1,6 @@
 import logging
+import os
+import random
 import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -14,11 +16,15 @@ from shared.communication_protocol.eof_message import EOFMessage
 from shared.communication_protocol.message import Message
 from shared.file_protocol.atomic_writer import AtomicWriter
 from shared.file_protocol.metadata_reader import MetadataReader
-from shared.file_protocol.prev_controllers_eof_recv import PrevControllersEOFRecv
-from shared.file_protocol.prev_controllers_last_message import (
+from shared.file_protocol.metadata_sections.prev_controllers_eof_recv import (
+    PrevControllersEOFRecv,
+)
+from shared.file_protocol.metadata_sections.prev_controllers_last_message import (
     PrevControllersLastMessage,
 )
-from shared.file_protocol.session_batch_messages import SessionBatchMessages
+from shared.file_protocol.metadata_sections.session_batch_messages import (
+    SessionBatchMessages,
+)
 from shared.simple_hash import simple_hash
 
 
@@ -105,6 +111,18 @@ class StreamDataHandler:
         self._stream_data_dir = Path("stream_data")
         self._stream_data_dir.mkdir(parents=True, exist_ok=True)
         self._stream_data_file_prefix = Path("stream_data_")
+
+        self._random_exit_active = False
+
+    # ============================== PRIVATE - EXIT ============================== #
+
+    def _random_exit_with_error(self, message: str, prob: int = 1) -> None:
+        if not self._random_exit_active:
+            return
+        random_value = random.randint(1, 1000)
+        if random_value <= prob:
+            self._log_error(f"action: exit_1 | result: error | message: {message}")
+            os._exit(1)
 
     # ============================== PRIVATE - LOGGING ============================== #
 
@@ -257,8 +275,14 @@ class StreamDataHandler:
                     self._log_warning(
                         f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
                     )
-        stream_message.update_batch_items(joined_batch_items)
-        return stream_message
+
+        return BatchMessage(
+            message_type=stream_message.message_type(),
+            session_id=stream_message.session_id(),
+            message_id=stream_message.message_id(),
+            controller_id=str(self._controller_id),
+            batch_items=joined_batch_items,
+        )
 
     # ============================== PRIVATE - MOM SEND/RECEIVE MESSAGES ============================== #
 
@@ -285,10 +309,13 @@ class StreamDataHandler:
                 )
                 continue
 
-            joined_message.update_controller_id(str(self._controller_id))
+            self._random_exit_with_error("before_sending_joined_message", 10)
             self._mom_send_message_to_next(joined_message)
+            self._random_exit_with_error("after_sending_joined_message", 10)
 
+            self._random_exit_with_error("before_saving_stream_data_section", 10)
             self._save_stream_data_section(session_id)
+            self._random_exit_with_error("after_saving_stream_data_section", 10)
 
         self._log_info(
             f"action: send_all_buffered_messages | result: success | session_id: {session_id}"
@@ -365,8 +392,14 @@ class StreamDataHandler:
 
                 self._send_all_buffered_messages(session_id)
 
-                message.update_controller_id(str(self._controller_id))
-                self._mom_send_message_through_all_producers(message)
+                self._mom_send_message_through_all_producers(
+                    EOFMessage(
+                        session_id=message.session_id(),
+                        message_id=message.message_id(),
+                        controller_id=str(self._controller_id),
+                        batch_message_type=message.batch_message_type(),
+                    )
+                )
                 self._log_info(
                     f"action: eof_sent | result: success | session_id: {session_id}"
                 )
@@ -392,8 +425,13 @@ class StreamDataHandler:
 
         self._clean_session_data_of(session_id)
 
-        message.update_controller_id(str(self._controller_id))
-        self._mom_send_message_through_all_producers(message)
+        self._mom_send_message_through_all_producers(
+            CleanSessionMessage(
+                session_id=message.session_id(),
+                message_id=message.message_id(),
+                controller_id=str(self._controller_id),
+            )
+        )
         self._log_info(
             f"action: clean_session_message_sent | result: success | session_id: {session_id}"
         )
@@ -407,16 +445,22 @@ class StreamDataHandler:
         if not self.is_duplicate_message(message):
             if isinstance(message, BatchMessage):
                 self._handle_data_batch_message_when_all_base_data_received(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, EOFMessage):
                 self._handle_data_batch_eof_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
             elif isinstance(message, CleanSessionMessage):
                 self._handle_clean_session_data_message(message)
+                self._random_exit_with_error("after_message_processed")
                 self._save_current_state(message.session_id())
+                self._random_exit_with_error("after_state_saved")
         else:
             self._log_info(
-                f"action: duplicate_message_ignored | result: success | message: {message}"
+                f"action: duplicate_message_ignored | result: success | message: {message.metadata()}"
             )
 
     # ============================== PRIVATE - RUN ============================== #

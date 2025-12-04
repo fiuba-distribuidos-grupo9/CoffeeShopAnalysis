@@ -1,8 +1,9 @@
+import logging
 from typing import Any
 
 from shared.communication_protocol.batch_message import BatchMessage
 from shared.communication_protocol.message import Message
-from shared.file_protocol.metadata_section import MetadataSection
+from shared.file_protocol.metadata_sections.metadata_section import MetadataSection
 
 
 class SessionBatchMessages(MetadataSection):
@@ -20,7 +21,13 @@ class SessionBatchMessages(MetadataSection):
         batch_messages = []
 
         for line in lines:
-            message = Message.suitable_for_str(line)
+            try:
+                message = Message.suitable_for_str(line)
+            except ValueError as e:
+                logging.error(
+                    f"action: parse_session_batch_message_error | result: error | line: {line} | error: {e}"
+                )
+                raise
             batch_messages.append(message)
 
         return cls(batch_messages)
@@ -35,6 +42,8 @@ class SessionBatchMessages(MetadataSection):
     def _payload_for_file(self) -> str:
         payload = ""
         for message in self.batch_messages():
+            if len(message.batch_items()) == 0:
+                continue
             payload += str(message)
             payload += "\n"
         return payload
