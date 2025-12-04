@@ -199,7 +199,7 @@ class BaseDataHandler:
                 self._base_data_dir / f"{self._base_data_file_prefix}{session_id}.txt"
             )
             batch_messages = self._base_data_by_session_id.get(session_id, None)
-            if batch_messages:
+            if batch_messages is not None:
                 self._atomic_writer.write(
                     path,
                     str(SessionBatchMessages(batch_messages)),

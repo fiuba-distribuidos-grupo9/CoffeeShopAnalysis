@@ -275,6 +275,7 @@ class StreamDataHandler:
                     self._log_warning(
                         f"action: join_with_base_data | result: error | stream_item: {stream_batch_item}"
                     )
+
         return BatchMessage(
             message_type=stream_message.message_type(),
             session_id=stream_message.session_id(),
