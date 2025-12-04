@@ -75,6 +75,7 @@ class StreamDataHandler:
         join_key: str,
         transform_function: Callable,
         is_stopped: threading.Event,
+        stream_data_handler_able_to_event: threading.Event,
     ) -> None:
         self._controller_id = controller_id
 
@@ -95,7 +96,9 @@ class StreamDataHandler:
         self._all_base_data_received = all_base_data_received
         self._all_base_data_received_lock = all_base_data_received_lock
 
-        self.is_stopped = is_stopped
+        self._is_stopped = is_stopped
+
+        self._stream_data_handler_able_to_event = stream_data_handler_able_to_event
 
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
@@ -141,7 +144,7 @@ class StreamDataHandler:
     # ============================== PRIVATE - ACCESSING ============================== #
 
     def _is_running(self) -> bool:
-        return not self.is_stopped.is_set()
+        return not self._is_stopped.is_set()
 
     def mom_consumer(
         self,
@@ -171,6 +174,12 @@ class StreamDataHandler:
         self._log_info(f"action: load_stream_data | result: in_progress")
 
         for path in self._stream_data_dir.iterdir():
+            if path.suffix == ".tmp":
+                self._log_info(
+                    f"action: load_base_data_skipped_tmp_file | result: success | file: {path}"
+                )
+                continue
+
             self._assert_is_file(path)
             metadata_sections = self._metadata_reader.read_from(path)
             for metadata_section in metadata_sections:
@@ -410,7 +419,6 @@ class StreamDataHandler:
                     f"action: all_eofs_received_before_base_data | result: success | session_id: {session_id}"
                 )
                 # Requeue the EOF message until all base data is received
-                # @TODO: base data handler should send a special message to notify that all base data has been received
                 self._prev_controllers_eof_recv[session_id][
                     int(prev_controller_id)
                 ] = False

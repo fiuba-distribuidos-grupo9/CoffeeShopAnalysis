@@ -28,9 +28,12 @@ class MetadataReader:
 
             eof_reached = False
             while not eof_reached:
-                line = file.readline().strip()
+                line = file.readline()
                 if not line:
                     eof_reached = True
+                    continue
+                line = line.replace("\x00", "").strip()
+                if not line:
                     continue
 
                 if self._is_section_header(line):

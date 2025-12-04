@@ -55,6 +55,7 @@ class BaseDataHandler:
         all_base_data_received: dict[str, bool],
         all_base_data_received_lock: Any,
         is_stopped: threading.Event,
+        stream_data_handler_able_to_event: threading.Event,
     ) -> None:
         self._controller_id = controller_id
 
@@ -68,7 +69,10 @@ class BaseDataHandler:
         self._all_base_data_received = all_base_data_received
         self._all_base_data_received_lock = all_base_data_received_lock
 
-        self.is_stopped = is_stopped
+        self._is_stopped = is_stopped
+
+        self._stream_data_handler_able_to_event = stream_data_handler_able_to_event
+        self._stream_data_handler_able_to_event.clear()
 
         self._prev_controllers_last_message: dict[int, Message] = {}
         self._duplicate_message_checker = DuplicateMessageChecker(self)
@@ -111,7 +115,7 @@ class BaseDataHandler:
     # ============================== PRIVATE - ACCESSING ============================== #
 
     def _is_running(self) -> bool:
-        return not self.is_stopped.is_set()
+        return not self._is_stopped.is_set()
 
     def mom_consumer(self) -> RabbitMQMessageMiddlewareQueue:
         return self._mom_consumer
@@ -143,6 +147,12 @@ class BaseDataHandler:
                 self._all_base_data_received[session_id] = all(eof_recv)
 
         for path in self._base_data_dir.iterdir():
+            if path.suffix == ".tmp":
+                self._log_info(
+                    f"action: load_base_data_skipped_tmp_file | result: success | file: {path}"
+                )
+                continue
+
             self._assert_is_file(path)
             metadata_sections = self._metadata_reader.read_from(path)
             for metadata_section in metadata_sections:
@@ -310,6 +320,7 @@ class BaseDataHandler:
     def _run(self) -> None:
         self._log_info(f"action: handler_running | result: success")
         self._load_last_state_if_exists()
+        self._stream_data_handler_able_to_event.set()
         self._mom_consumer.start_consuming(self._handle_base_data)
 
     def _close_all(self) -> None:

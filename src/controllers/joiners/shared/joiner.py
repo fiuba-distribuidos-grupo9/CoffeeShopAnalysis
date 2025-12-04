@@ -91,6 +91,8 @@ class Joiner(Controller):
         self._uncaught_exception: Optional[Exception] = None
         self._uncaught_exception_lock = threading.Lock()
 
+        self._stream_data_handler_able_to_event = threading.Event()
+
     # ============================== PRIVATE - SIGNAL HANDLER ============================== #
 
     def _stop(self) -> None:
@@ -124,6 +126,7 @@ class Joiner(Controller):
                 all_base_data_received=self._all_base_data_received,
                 all_base_data_received_lock=self._all_base_data_received_lock,
                 is_stopped=self.is_stopped,
+                stream_data_handler_able_to_event=self._stream_data_handler_able_to_event,
             )
             self._base_data_handler.run()
         except Exception as e:
@@ -149,6 +152,7 @@ class Joiner(Controller):
                 join_key=self._join_key(),
                 transform_function=self._transform_function,
                 is_stopped=self.is_stopped,
+                stream_data_handler_able_to_event=self._stream_data_handler_able_to_event,
             )
             self._stream_data_handler.run()
         except Exception as e:
