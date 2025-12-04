@@ -1,19 +1,16 @@
 FROM python:3.13-slim
 
-# WORKDIR /app
+WORKDIR /app
 
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     iputils-ping ca-certificates tzdata \
-#     && rm -rf /var/lib/apt/lists/*
+COPY src/health_checkers/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /app/requirements.txt
 
-# COPY requirements.txt /app/requirements.txt
-# RUN pip install --no-cache-dir --upgrade pip \
-#     && pip install --no-cache-dir -r /app/requirements.txt
+COPY src/health_checkers/app /app/app
+COPY src/shared /app/shared
+COPY src/health_checkers/scripts/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# COPY app /app/app
-# COPY scripts/entrypoint.sh /app/entrypoint.sh
-# RUN chmod +x /app/entrypoint.sh
+ENV PYTHONUNBUFFERED=1
 
-# ENV PYTHONUNBUFFERED=1
-
-# ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]

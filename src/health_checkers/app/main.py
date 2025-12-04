@@ -1,46 +1,97 @@
-# src/health_checkers/app/main.py
+# Imports.
 from __future__ import annotations
-import asyncio, os, sys
-try:
-    import uvloop
-    uvloop.install()
-except Exception:
-    pass
+import logging
+import threading
+import time
+from pathlib import Path
+from typing import Optional
+from shared.utils import load_config_from_env, jitter_ms
+from .node import Node  
+from shared import initializer
 
-from .utils import load_config_from_env
-from .ring_node import RingNode
-from .leader import LeaderLoop
+STATE_FILE = Path("/tmp/hc_started.flag")
 
-async def _run_auto():
+# Check if first start.
+def _is_first_start() -> bool:
+    return not STATE_FILE.exists()
+
+# Mark that the application has started at least once.
+def _mark_started() -> None:
+    try:
+        STATE_FILE.touch()
+    except Exception as e:
+        logging.warning(f"action: mark_started | result: fail | error: {e}")
+
+# Smart election start logic.
+def _smart_election_start(node: Node, cfg) -> None:
+    is_first_start = _is_first_start()
+    
+    if is_first_start:
+        jitter = jitter_ms(500, 2000)
+        logging.info(f"action: starting_first_election | status: in progress")
+        _mark_started()
+        time.sleep(jitter)
+        if not node.shutdown_requested():
+            try:
+                if node.cfg.node_id == 0:
+                    node.election.start_election()
+            except Exception as e:
+                logging.error(f"action: first_election | result: fail | error: {e}")
+    else:
+        discovery_timeout = 6.0
+        check_interval = 0.5
+        elapsed = 0.0
+        logging.info(f"---------------------------------------------")
+        logging.info(f"action: controller_revived | result: success")
+        while elapsed < discovery_timeout and not node.shutdown_requested():
+            if node.election.leader_id is not None:
+                logging.info(f"action: leader_discovered | result: success | new_leader: {node.election.leader_id}")
+                return
+
+            time.sleep(check_interval)
+            elapsed += check_interval
+        
+        if node.election.leader_id is None and not node.shutdown_requested():
+            logging.info(f"action: leader_discovered | result: fail | new_action: start_election")
+            try:
+                node.election.start_election()
+            except Exception as e:
+                logging.error(f"action: start_election | result: fail | error: {e}")
+
+# Main run function.
+def _run() -> None:
     cfg = load_config_from_env()
-    print(f"[boot] {cfg.node_name} (id={cfg.node_id}) escuchando en {cfg.listen_host}:{cfg.listen_port}")
-    print(f"[boot] Peers: {[f'{p.id}@{p.host}:{p.port}' for p in cfg.peers]}")
-    rn = RingNode(cfg)
-    leader = LeaderLoop(cfg, rn.is_leader)
-
-    # We both start: Ring + leader-loop (Leader dozes if not leader).
-    await asyncio.gather(
-        rn.run(),
-        leader.start(),
+    node = Node(cfg)
+    
+    election_thread = threading.Thread(
+        target=_smart_election_start,
+        args=(node, cfg),
+        name=f"ElectionStart-{cfg.node_id}",
+        daemon=False
     )
 
-def _print_topology_and_exit():
-    cfg = load_config_from_env()
-    print("=== HEALTH CHECKERS (ring) — MODO MANUAL ===")
-    print(f"Nodo: {cfg.node_name} (id={cfg.node_id}) en {cfg.listen_host}:{cfg.listen_port}")
-    for p in cfg.peers:
-        print(f"  peer: {p.id}@{p.host}:{p.port} ({p.name})")
-    print("No se inicia lógica automática (heartbeat/election).")
-
-def main():
-    mode = os.getenv("MODE", "auto")
-    if mode == "manual":
-        _print_topology_and_exit()
-        return
+    election_thread.start()
     try:
-        asyncio.run(_run_auto())
-    except KeyboardInterrupt:
-        print("Bye")
+        node.run()
+    finally:
+        if election_thread.is_alive():
+            election_thread.join(timeout=3.0)
+            if election_thread.is_alive():
+                logging.warning(f"action: join_election_thread | result: timeout")
+        
+        logging.info(f"action: main_shutdown | result: success")
 
+# Main function.
+def main() -> None:
+    initializer.init_log("INFO")
+    try:
+        _run()
+    except KeyboardInterrupt:
+        logging.info(f"action: keyboard_interrupt | result: caught_in_main")
+    except Exception as e:
+        logging.error(f"action: main_exception | error: {e}")
+        raise
+
+# Entry point.
 if __name__ == "__main__":
     main()

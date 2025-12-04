@@ -71,6 +71,7 @@ services:
       - Q22_OB_AMOUNT=1
       - Q3X_OB_AMOUNT=1
       - Q4X_OB_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -89,6 +90,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -105,6 +107,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -121,6 +124,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -137,6 +141,7 @@ services:
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -153,6 +158,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -169,6 +175,7 @@ services:
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -185,6 +192,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=8
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -201,6 +209,7 @@ services:
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - NEXT_CONTROLLERS_AMOUNT=8
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -221,6 +230,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=6
       - YEARS_TO_KEEP=2024,2025
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -239,6 +249,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=6
       - YEARS_TO_KEEP=2024,2025
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -258,6 +269,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -277,6 +289,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -296,6 +309,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -315,6 +329,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -334,6 +349,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -353,6 +369,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_HOUR=6
       - MAX_HOUR=23
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -371,6 +388,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=6
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_FINAL_AMOUNT=75.0
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -389,6 +407,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=6
       - NEXT_CONTROLLERS_AMOUNT=2
       - MIN_FINAL_AMOUNT=75.0
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -407,6 +426,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - YEARS_TO_KEEP=2024,2025
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -425,6 +445,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - YEARS_TO_KEEP=2024,2025
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -444,6 +465,7 @@ services:
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -461,6 +483,7 @@ services:
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -478,6 +501,7 @@ services:
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=6
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -495,6 +519,7 @@ services:
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=6
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -515,6 +540,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=1
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -533,6 +559,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=1
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -551,6 +578,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=1
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -569,6 +597,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=1
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -587,6 +616,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -605,6 +635,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -623,6 +654,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -641,6 +673,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -659,6 +692,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -677,6 +711,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -695,6 +730,7 @@ services:
       - PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -716,6 +752,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -735,6 +772,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=2
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -754,6 +792,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=8
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=3
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -773,6 +812,7 @@ services:
       - NEXT_CONTROLLERS_AMOUNT=8
       - BATCH_MAX_SIZE=${BATCH_MAX_SIZE}
       - AMOUNT_PER_GROUP=3
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -793,6 +833,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -811,6 +852,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -829,6 +871,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -847,6 +890,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -865,6 +909,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -883,6 +928,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=1
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -901,6 +947,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=8
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -919,6 +966,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=1
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=8
       - NEXT_CONTROLLERS_AMOUNT=1
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -937,6 +985,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -955,6 +1004,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -973,6 +1023,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -991,6 +1042,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1009,6 +1061,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1027,6 +1080,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1045,6 +1099,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1063,6 +1118,7 @@ services:
       - BASE_DATA_PREV_CONTROLLERS_AMOUNT=2
       - STREAM_DATA_PREV_CONTROLLERS_AMOUNT=2
       - NEXT_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1081,6 +1137,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1097,6 +1154,7 @@ services:
       - CONTROLLER_ID=1
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1113,6 +1171,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1129,6 +1188,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1145,6 +1205,7 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
     networks:
       - custom_net
     depends_on:
@@ -1161,6 +1222,164 @@ services:
       - CONTROLLER_ID=0
       - RABBITMQ_HOST=rabbitmq-message-middleware
       - PREV_CONTROLLERS_AMOUNT=2
+      - HEALTH_LISTEN_PORT=9201
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  # ============================== HEALTH CHECKERS SERVICES ============================== #
+
+  hc_0:
+    container_name: hc_0
+    image: health_checkers:latest
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ID=0
+      - NODE_NAME=hc_0
+      - LISTEN_PORT=9101
+      - HEALTH_LISTEN_PORT=9201
+      - RING_PEERS=hc_1,hc_2,hc_3,hc_4
+      - CONTROLLER_TARGETS=server,menu_items_cleaner_0,stores_cleaner_0,transaction_items_cleaner_0,transaction_items_cleaner_1,transactions_cleaner_0,transactions_cleaner_1,users_cleaner_0,users_cleaner_1,filter_transactions_by_year_0,filter_transactions_by_year_1,filter_transactions_by_hour_0,filter_transactions_by_hour_1,filter_transactions_by_hour_2,filter_transactions_by_hour_3,filter_transactions_by_hour_4,filter_transactions_by_hour_5,filter_transactions_by_final_amount_0,filter_transactions_by_final_amount_1,filter_transaction_items_by_year_0,filter_transaction_items_by_year_1,year_month_created_at_transaction_items_mapper_0,year_month_created_at_transaction_items_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,sellings_qty_by_item_id_and_year_month_created_at_reducer_0,profit_sum_by_item_id_and_year_month_created_at_reducer_0,sellings_qty_by_item_id_and_year_month_created_at_reducer_1,profit_sum_by_item_id_and_year_month_created_at_reducer_1,tpv_by_store_id_and_year_half_created_at_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_1,purchases_qty_by_store_id_and_user_id_reducer_2,purchases_qty_by_store_id_and_user_id_reducer_3,purchases_qty_by_store_id_and_user_id_reducer_4,purchases_qty_by_store_id_and_user_id_reducer_5,desc_by_year_month_created_at_and_sellings_qty_sorter_0,desc_by_year_month_created_at_and_profit_sum_sorter_0,desc_by_store_id_and_purchases_qty_sorter_0,desc_by_store_id_and_purchases_qty_sorter_1,transaction_items_with_menu_items_query_21_joiner_0,transaction_items_with_menu_items_query_22_joiner_0,transaction_items_with_menu_items_query_21_joiner_1,transaction_items_with_menu_items_query_22_joiner_1,transactions_with_stores_query_3x_joiner_0,transactions_with_stores_query_3x_joiner_1,transactions_with_stores_query_4x_joiner_0,transactions_with_stores_query_4x_joiner_1,transactions_with_users_joiner_0,transactions_with_users_joiner_1,transactions_with_users_joiner_2,transactions_with_users_joiner_3,transactions_with_users_joiner_4,transactions_with_users_joiner_5,transactions_with_users_joiner_6,transactions_with_users_joiner_7,query_1x_output_builder_0,query_1x_output_builder_1,query_21_output_builder_0,query_22_output_builder_0,query_3x_output_builder_0,query_4x_output_builder_0
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - HEARTBEAT_INTERVAL_MS=1000
+      - HEARTBEAT_TIMEOUT_MS=1500
+      - NODHEARTBEAT_MAX_RETRIES=5
+      - SUSPECT_GRACE_MS=1200
+      - LEADER_CHECK_INTERVAL_MS=10000
+      - LEADER_CHECK_TIMEOUT_MS=3000
+      - ELECTION_BACKOFF_MS_MIN=300
+      - ELECTION_BACKOFF_MS_MAX=900
+      - LEADER_RANDOM_SLEEP_MIN_MS=1500
+      - LEADER_RANDOM_SLEEP_MAX_MS=5000
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  hc_1:
+    container_name: hc_1
+    image: health_checkers:latest
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ID=1
+      - NODE_NAME=hc_1
+      - LISTEN_PORT=9101
+      - HEALTH_LISTEN_PORT=9201
+      - RING_PEERS=hc_0,hc_2,hc_3,hc_4
+      - CONTROLLER_TARGETS=server,menu_items_cleaner_0,stores_cleaner_0,transaction_items_cleaner_0,transaction_items_cleaner_1,transactions_cleaner_0,transactions_cleaner_1,users_cleaner_0,users_cleaner_1,filter_transactions_by_year_0,filter_transactions_by_year_1,filter_transactions_by_hour_0,filter_transactions_by_hour_1,filter_transactions_by_hour_2,filter_transactions_by_hour_3,filter_transactions_by_hour_4,filter_transactions_by_hour_5,filter_transactions_by_final_amount_0,filter_transactions_by_final_amount_1,filter_transaction_items_by_year_0,filter_transaction_items_by_year_1,year_month_created_at_transaction_items_mapper_0,year_month_created_at_transaction_items_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,sellings_qty_by_item_id_and_year_month_created_at_reducer_0,profit_sum_by_item_id_and_year_month_created_at_reducer_0,sellings_qty_by_item_id_and_year_month_created_at_reducer_1,profit_sum_by_item_id_and_year_month_created_at_reducer_1,tpv_by_store_id_and_year_half_created_at_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_1,purchases_qty_by_store_id_and_user_id_reducer_2,purchases_qty_by_store_id_and_user_id_reducer_3,purchases_qty_by_store_id_and_user_id_reducer_4,purchases_qty_by_store_id_and_user_id_reducer_5,desc_by_year_month_created_at_and_sellings_qty_sorter_0,desc_by_year_month_created_at_and_profit_sum_sorter_0,desc_by_store_id_and_purchases_qty_sorter_0,desc_by_store_id_and_purchases_qty_sorter_1,transaction_items_with_menu_items_query_21_joiner_0,transaction_items_with_menu_items_query_22_joiner_0,transaction_items_with_menu_items_query_21_joiner_1,transaction_items_with_menu_items_query_22_joiner_1,transactions_with_stores_query_3x_joiner_0,transactions_with_stores_query_3x_joiner_1,transactions_with_stores_query_4x_joiner_0,transactions_with_stores_query_4x_joiner_1,transactions_with_users_joiner_0,transactions_with_users_joiner_1,transactions_with_users_joiner_2,transactions_with_users_joiner_3,transactions_with_users_joiner_4,transactions_with_users_joiner_5,transactions_with_users_joiner_6,transactions_with_users_joiner_7,query_1x_output_builder_0,query_1x_output_builder_1,query_21_output_builder_0,query_22_output_builder_0,query_3x_output_builder_0,query_4x_output_builder_0
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - HEARTBEAT_INTERVAL_MS=1000
+      - HEARTBEAT_TIMEOUT_MS=1500
+      - NODHEARTBEAT_MAX_RETRIES=5
+      - SUSPECT_GRACE_MS=1200
+      - LEADER_CHECK_INTERVAL_MS=10000
+      - LEADER_CHECK_TIMEOUT_MS=3000
+      - ELECTION_BACKOFF_MS_MIN=300
+      - ELECTION_BACKOFF_MS_MAX=900
+      - LEADER_RANDOM_SLEEP_MIN_MS=1500
+      - LEADER_RANDOM_SLEEP_MAX_MS=5000
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  hc_2:
+    container_name: hc_2
+    image: health_checkers:latest
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ID=2
+      - NODE_NAME=hc_2
+      - LISTEN_PORT=9101
+      - HEALTH_LISTEN_PORT=9201
+      - RING_PEERS=hc_0,hc_1,hc_3,hc_4
+      - CONTROLLER_TARGETS=server,menu_items_cleaner_0,stores_cleaner_0,transaction_items_cleaner_0,transaction_items_cleaner_1,transactions_cleaner_0,transactions_cleaner_1,users_cleaner_0,users_cleaner_1,filter_transactions_by_year_0,filter_transactions_by_year_1,filter_transactions_by_hour_0,filter_transactions_by_hour_1,filter_transactions_by_hour_2,filter_transactions_by_hour_3,filter_transactions_by_hour_4,filter_transactions_by_hour_5,filter_transactions_by_final_amount_0,filter_transactions_by_final_amount_1,filter_transaction_items_by_year_0,filter_transaction_items_by_year_1,year_month_created_at_transaction_items_mapper_0,year_month_created_at_transaction_items_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,sellings_qty_by_item_id_and_year_month_created_at_reducer_0,profit_sum_by_item_id_and_year_month_created_at_reducer_0,sellings_qty_by_item_id_and_year_month_created_at_reducer_1,profit_sum_by_item_id_and_year_month_created_at_reducer_1,tpv_by_store_id_and_year_half_created_at_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_1,purchases_qty_by_store_id_and_user_id_reducer_2,purchases_qty_by_store_id_and_user_id_reducer_3,purchases_qty_by_store_id_and_user_id_reducer_4,purchases_qty_by_store_id_and_user_id_reducer_5,desc_by_year_month_created_at_and_sellings_qty_sorter_0,desc_by_year_month_created_at_and_profit_sum_sorter_0,desc_by_store_id_and_purchases_qty_sorter_0,desc_by_store_id_and_purchases_qty_sorter_1,transaction_items_with_menu_items_query_21_joiner_0,transaction_items_with_menu_items_query_22_joiner_0,transaction_items_with_menu_items_query_21_joiner_1,transaction_items_with_menu_items_query_22_joiner_1,transactions_with_stores_query_3x_joiner_0,transactions_with_stores_query_3x_joiner_1,transactions_with_stores_query_4x_joiner_0,transactions_with_stores_query_4x_joiner_1,transactions_with_users_joiner_0,transactions_with_users_joiner_1,transactions_with_users_joiner_2,transactions_with_users_joiner_3,transactions_with_users_joiner_4,transactions_with_users_joiner_5,transactions_with_users_joiner_6,transactions_with_users_joiner_7,query_1x_output_builder_0,query_1x_output_builder_1,query_21_output_builder_0,query_22_output_builder_0,query_3x_output_builder_0,query_4x_output_builder_0
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - HEARTBEAT_INTERVAL_MS=1000
+      - HEARTBEAT_TIMEOUT_MS=1500
+      - NODHEARTBEAT_MAX_RETRIES=5
+      - SUSPECT_GRACE_MS=1200
+      - LEADER_CHECK_INTERVAL_MS=10000
+      - LEADER_CHECK_TIMEOUT_MS=3000
+      - ELECTION_BACKOFF_MS_MIN=300
+      - ELECTION_BACKOFF_MS_MAX=900
+      - LEADER_RANDOM_SLEEP_MIN_MS=1500
+      - LEADER_RANDOM_SLEEP_MAX_MS=5000
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  hc_3:
+    container_name: hc_3
+    image: health_checkers:latest
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ID=3
+      - NODE_NAME=hc_3
+      - LISTEN_PORT=9101
+      - HEALTH_LISTEN_PORT=9201
+      - RING_PEERS=hc_0,hc_1,hc_2,hc_4
+      - CONTROLLER_TARGETS=server,menu_items_cleaner_0,stores_cleaner_0,transaction_items_cleaner_0,transaction_items_cleaner_1,transactions_cleaner_0,transactions_cleaner_1,users_cleaner_0,users_cleaner_1,filter_transactions_by_year_0,filter_transactions_by_year_1,filter_transactions_by_hour_0,filter_transactions_by_hour_1,filter_transactions_by_hour_2,filter_transactions_by_hour_3,filter_transactions_by_hour_4,filter_transactions_by_hour_5,filter_transactions_by_final_amount_0,filter_transactions_by_final_amount_1,filter_transaction_items_by_year_0,filter_transaction_items_by_year_1,year_month_created_at_transaction_items_mapper_0,year_month_created_at_transaction_items_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,sellings_qty_by_item_id_and_year_month_created_at_reducer_0,profit_sum_by_item_id_and_year_month_created_at_reducer_0,sellings_qty_by_item_id_and_year_month_created_at_reducer_1,profit_sum_by_item_id_and_year_month_created_at_reducer_1,tpv_by_store_id_and_year_half_created_at_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_1,purchases_qty_by_store_id_and_user_id_reducer_2,purchases_qty_by_store_id_and_user_id_reducer_3,purchases_qty_by_store_id_and_user_id_reducer_4,purchases_qty_by_store_id_and_user_id_reducer_5,desc_by_year_month_created_at_and_sellings_qty_sorter_0,desc_by_year_month_created_at_and_profit_sum_sorter_0,desc_by_store_id_and_purchases_qty_sorter_0,desc_by_store_id_and_purchases_qty_sorter_1,transaction_items_with_menu_items_query_21_joiner_0,transaction_items_with_menu_items_query_22_joiner_0,transaction_items_with_menu_items_query_21_joiner_1,transaction_items_with_menu_items_query_22_joiner_1,transactions_with_stores_query_3x_joiner_0,transactions_with_stores_query_3x_joiner_1,transactions_with_stores_query_4x_joiner_0,transactions_with_stores_query_4x_joiner_1,transactions_with_users_joiner_0,transactions_with_users_joiner_1,transactions_with_users_joiner_2,transactions_with_users_joiner_3,transactions_with_users_joiner_4,transactions_with_users_joiner_5,transactions_with_users_joiner_6,transactions_with_users_joiner_7,query_1x_output_builder_0,query_1x_output_builder_1,query_21_output_builder_0,query_22_output_builder_0,query_3x_output_builder_0,query_4x_output_builder_0
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - HEARTBEAT_INTERVAL_MS=1000
+      - HEARTBEAT_TIMEOUT_MS=1500
+      - NODHEARTBEAT_MAX_RETRIES=5
+      - SUSPECT_GRACE_MS=1200
+      - LEADER_CHECK_INTERVAL_MS=10000
+      - LEADER_CHECK_TIMEOUT_MS=3000
+      - ELECTION_BACKOFF_MS_MIN=300
+      - ELECTION_BACKOFF_MS_MAX=900
+      - LEADER_RANDOM_SLEEP_MIN_MS=1500
+      - LEADER_RANDOM_SLEEP_MAX_MS=5000
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - custom_net
+    depends_on:
+      rabbitmq-message-middleware:
+        condition: service_healthy
+
+  hc_4:
+    container_name: hc_4
+    image: health_checkers:latest
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ID=4
+      - NODE_NAME=hc_4
+      - LISTEN_PORT=9101
+      - HEALTH_LISTEN_PORT=9201
+      - RING_PEERS=hc_0,hc_1,hc_2,hc_3
+      - CONTROLLER_TARGETS=server,menu_items_cleaner_0,stores_cleaner_0,transaction_items_cleaner_0,transaction_items_cleaner_1,transactions_cleaner_0,transactions_cleaner_1,users_cleaner_0,users_cleaner_1,filter_transactions_by_year_0,filter_transactions_by_year_1,filter_transactions_by_hour_0,filter_transactions_by_hour_1,filter_transactions_by_hour_2,filter_transactions_by_hour_3,filter_transactions_by_hour_4,filter_transactions_by_hour_5,filter_transactions_by_final_amount_0,filter_transactions_by_final_amount_1,filter_transaction_items_by_year_0,filter_transaction_items_by_year_1,year_month_created_at_transaction_items_mapper_0,year_month_created_at_transaction_items_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,year_half_created_at_transactions_mapper_0,year_half_created_at_transactions_mapper_1,sellings_qty_by_item_id_and_year_month_created_at_reducer_0,profit_sum_by_item_id_and_year_month_created_at_reducer_0,sellings_qty_by_item_id_and_year_month_created_at_reducer_1,profit_sum_by_item_id_and_year_month_created_at_reducer_1,tpv_by_store_id_and_year_half_created_at_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_0,purchases_qty_by_store_id_and_user_id_reducer_1,purchases_qty_by_store_id_and_user_id_reducer_2,purchases_qty_by_store_id_and_user_id_reducer_3,purchases_qty_by_store_id_and_user_id_reducer_4,purchases_qty_by_store_id_and_user_id_reducer_5,desc_by_year_month_created_at_and_sellings_qty_sorter_0,desc_by_year_month_created_at_and_profit_sum_sorter_0,desc_by_store_id_and_purchases_qty_sorter_0,desc_by_store_id_and_purchases_qty_sorter_1,transaction_items_with_menu_items_query_21_joiner_0,transaction_items_with_menu_items_query_22_joiner_0,transaction_items_with_menu_items_query_21_joiner_1,transaction_items_with_menu_items_query_22_joiner_1,transactions_with_stores_query_3x_joiner_0,transactions_with_stores_query_3x_joiner_1,transactions_with_stores_query_4x_joiner_0,transactions_with_stores_query_4x_joiner_1,transactions_with_users_joiner_0,transactions_with_users_joiner_1,transactions_with_users_joiner_2,transactions_with_users_joiner_3,transactions_with_users_joiner_4,transactions_with_users_joiner_5,transactions_with_users_joiner_6,transactions_with_users_joiner_7,query_1x_output_builder_0,query_1x_output_builder_1,query_21_output_builder_0,query_22_output_builder_0,query_3x_output_builder_0,query_4x_output_builder_0
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - HEARTBEAT_INTERVAL_MS=1000
+      - HEARTBEAT_TIMEOUT_MS=1500
+      - NODHEARTBEAT_MAX_RETRIES=5
+      - SUSPECT_GRACE_MS=1200
+      - LEADER_CHECK_INTERVAL_MS=10000
+      - LEADER_CHECK_TIMEOUT_MS=3000
+      - ELECTION_BACKOFF_MS_MIN=300
+      - ELECTION_BACKOFF_MS_MAX=900
+      - LEADER_RANDOM_SLEEP_MIN_MS=1500
+      - LEADER_RANDOM_SLEEP_MAX_MS=5000
+      - DOCKER_HOST=unix:///var/run/docker.sock
     networks:
       - custom_net
     depends_on:

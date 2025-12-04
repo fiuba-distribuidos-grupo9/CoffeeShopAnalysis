@@ -42,7 +42,7 @@ class Server:
         self._client_spawned_processes: dict[str, multiprocessing.Process] = {}
 
         self._heartbeat_process: Optional[multiprocessing.Process] = None
-        self._heartbeat_process_port = 555  # @TODO read from config
+        self._heartbeat_process_port = 9201  # @TODO read from config
 
         self._metadata_reader = MetadataReader()
         self._atomic_writer = AtomicWriter()
